@@ -1,4 +1,22 @@
-colorama==0.4.6
-torch==2.1.2
-torchsummary==1.5.1
-tqdm==4.66.1
+# PyTorch framework with computer vision support package.
+# We're training on cloud GPUs, which often have the framework pre-installed, 
+#     thus here we just install the CPU version.
+torch~=2.1.2
+torchvision~=0.16.2
+
+# Used for inspecting models' output shape and other information.
+# P.S. I don't know if this package is from torch official.
+torchsummary~=1.5.1
+
+# Colorize printing in console.
+colorama~=0.4.6
+
+# Progress bar in console.
+# Initially imported for beautify model-training progress but found it
+#     also very practical in estimating an operation's remaining time.
+tqdm~=4.66.1
+
+# Adversarial examples' codebase.
+# Used for generating adversarials, by applying adversarial attacks on
+#     normal images.
+cleverhans~=4.0.0
