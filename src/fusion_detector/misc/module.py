@@ -1,17 +1,21 @@
 import os
+import pathlib
 from abc import ABC, abstractmethod
-from pathlib import PurePath
 from typing import *
 
 import torch
 import torchsummary
 from torch import Tensor, nn, optim
 from torch.utils.data.dataloader import DataLoader
-from tqdm import tqdm, trange
+from tqdm import tqdm
 
-from .device import apply_device
-from .utility import (ListOrElement, ListOrElementProxy, PossibleRedirectStream,
-                      TensorTransformAction)
+from fusion_detector.misc.device import apply_device
+from fusion_detector.misc.utility import (
+    ListOrElement,
+    ListOrElementProxy,
+    PossibleRedirectStream,
+    TensorTransformAction,
+)
 
 __all__ = [
     "OptimizerConstructor",
@@ -27,7 +31,7 @@ __all__ = [
 # Type aliases
 OptimizerConstructor = Callable[[Iterator[nn.Parameter]], optim.Optimizer]
 OptimizerConstructive = Union[optim.Optimizer, OptimizerConstructor]
-CriteriaAction = Callable[[torch.Tensor, ...], torch.Tensor]
+CriteriaAction = Callable[[Tuple[torch.Tensor]], torch.Tensor]
 
 # Constants
 MODULE_SAVE_SUFFIX = ".pt"
@@ -51,7 +55,7 @@ class AbstractModuleProxy(ABC):
 
         preprocess_input: aims to preprocess the input tensor before forwarding.
         preprocess_label: aims to preprocess the label tensor before forwarding.
-        postprocess_output: when forwarded, postprocess the output tensor to fit with the 
+        postprocess_output: when forwarded, postprocess the output tensor to fit with the
             label. This is important before calculating accuracy.
     """
 
@@ -96,7 +100,7 @@ class AbstractModuleProxy(ABC):
         return label.float()
 
     def postprocess_output(self, y: torch.Tensor) -> torch.Tensor:
-        """Postprocess the output tensor to fit with the label. 
+        """Postprocess the output tensor to fit with the label.
 
         This is important before calculating accuracy.
         """
@@ -110,11 +114,11 @@ class ModuleProxy(AbstractModuleProxy):
     """
 
     def __init__(
-            self,
-            module: nn.Module,
-            *,
-            optimizer: Optional[OptimizerConstructive] = None,
-            criteria: Optional[CriteriaAction] = None,
+        self,
+        module: nn.Module,
+        *,
+        optimizer: Optional[OptimizerConstructive] = None,
+        criteria: Optional[CriteriaAction] = None,
     ) -> None:
         self.module: nn.Module = apply_device(module)
         self.optimizer: Optional[optim.Optimizer] = None
@@ -195,9 +199,9 @@ class ModuleProxy(AbstractModuleProxy):
         )
 
     def summary(
-            self,
-            input_shape: Any = (3, 224, 224),
-            path: Optional[os.PathLike] = None,
+        self,
+        input_shape: Any = (3, 224, 224),
+        path: Optional[os.PathLike] = None,
     ) -> None:
         with PossibleRedirectStream(path):
             torchsummary.summary(self.module, input_shape)
@@ -215,10 +219,10 @@ class MultiModuleProxy(AbstractModuleProxy):
     """
 
     def __init__(
-            self,
-            *modules: Union[nn.Module, ModuleProxy],
-            optimizer: Optional[ListOrElement[OptimizerConstructive]] = None,
-            criteria: Optional[ListOrElement[CriteriaAction]] = None,
+        self,
+        *modules: Union[nn.Module, ModuleProxy],
+        optimizer: Optional[ListOrElement[OptimizerConstructive]] = None,
+        criteria: Optional[ListOrElement[CriteriaAction]] = None,
     ) -> None:
         self.proxies: List[ModuleProxy] = []
         for module in modules:
@@ -256,28 +260,28 @@ class MultiModuleProxy(AbstractModuleProxy):
             proxy.save(directory, names[index])
 
     def summary(
-            self,
-            input_shape: Any = (3, 224, 224),
-            directory: Optional[os.PathLike] = None,
-            names: Optional[List[str]] = None,
+        self,
+        input_shape: Any = (3, 224, 224),
+        directory: Optional[os.PathLike] = None,
+        names: Optional[List[str]] = None,
     ) -> None:
         if directory is not None or names is not None:
             assert directory is not None and names is not None
             for index, proxy in enumerate(self.proxies):
-                proxy.summary(input_shape, PurePath(directory, names[index]))
+                proxy.summary(input_shape, pathlib.PurePath(directory, names[index]))
         else:
             for proxy in self.proxies:
                 proxy.summary(input_shape)
 
     def structure(
-            self,
-            directory: Optional[os.PathLike] = None,
-            names: Optional[List[str]] = None,
+        self,
+        directory: Optional[os.PathLike] = None,
+        names: Optional[List[str]] = None,
     ) -> None:
         if directory is not None or names is not None:
             assert directory is not None and names is not None
             for index, proxy in enumerate(self.proxies):
-                proxy.structure(PurePath(directory, names[index]))
+                proxy.structure(pathlib.PurePath(directory, names[index]))
         else:
             for proxy in self.proxies:
                 proxy.structure()
@@ -285,12 +289,12 @@ class MultiModuleProxy(AbstractModuleProxy):
 
 class AdversarialModuleProxy(ModuleProxy):
     def __init__(
-            self,
-            module: nn.Module,
-            attack: ListOrElement[TensorTransformAction],
-            *,
-            optimizer: Optional[OptimizerConstructive] = None,
-            criteria: Optional[CriteriaAction] = None,
+        self,
+        module: nn.Module,
+        attack: ListOrElement[TensorTransformAction],
+        *,
+        optimizer: Optional[OptimizerConstructive] = None,
+        criteria: Optional[CriteriaAction] = None,
     ) -> None:
         super().__init__(module, optimizer=optimizer, criteria=criteria)
         self.attack = ListOrElementProxy(attack)
@@ -310,8 +314,7 @@ class AdversarialModuleProxy(ModuleProxy):
         # Zeros represents normal examples, ones represents adversarial examples.
         label = super().preprocess_label(label)
         normal_labels = torch.zeros_like(label)
-        adversarial_labels = (torch.ones_like(label)
-                              for _ in range(len(self.attack)))
+        adversarial_labels = (torch.ones_like(label) for _ in range(len(self.attack)))
         labels = torch.concat((normal_labels, *adversarial_labels))
         # Shuffle accordingly.
         return labels[self._shuffle, ...]

@@ -1,6 +1,6 @@
 import os
+import pathlib
 import sys
-from pathlib import Path
 from typing import *
 
 import torch
@@ -65,10 +65,10 @@ class PossibleRedirectStream(object):
         self,
         filename: Optional[os.PathLike],
     ) -> None:
-        self.path: Optional[Path] = None
+        self.path: Optional[pathlib.Path] = None
         if filename is None:
             return
-        self.path = Path(filename).with_suffix(TEXT_FILE_SUFFIX)
+        self.path = pathlib.Path(filename).with_suffix(TEXT_FILE_SUFFIX)
 
     def __enter__(self) -> None:
         if self.path is None:

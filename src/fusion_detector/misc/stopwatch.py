@@ -1,8 +1,9 @@
 import time
 from typing import *
 
-from . import console
-from .utility import attribute_of
+import console
+
+from fusion_detector.misc.utility import attribute_of
 
 __all__ = ["StopwatchContext", "Stopwatch"]
 

@@ -1,71 +1,78 @@
+if __name__ != "__main__":
+    import pathlib
+
+    filename = pathlib.PurePath(__file__).name
+    raise ModuleNotFoundError(f"`{filename}` is a tool script, not a lib.")
+
 import os
 import pathlib
 from typing import *
 
 import colorama
-from colorama import Fore, Back
+from colorama import Back, Fore
 
 colorama.init(autoreset=True)
 
-SCRIPT_PATH = pathlib.PurePath(__file__).parent
-PROJECT_PATH = SCRIPT_PATH.parent
+SCRIPT_DIRECTORY = pathlib.PurePath(__file__).parent
+PROJECT_DIRECTORY = SCRIPT_DIRECTORY.parent
 RECURSIVE_CLEAN_TARGETS = ["src", "tests"]
+PYTHON_CACHE_DIRECTORY_NAME = "__pycache__"
 
 
-def _background(color: str, text: str) -> str:
-    return Fore.BLACK + color + f" {text} "
+def highlight(back: str, text: str) -> str:
+    return Fore.BLACK + back + f" {text} "
 
 
-def _print_enter(text: str) -> None:
-    print(_background(Back.WHITE, " ENTER "), text)
+def entering(*text: Any) -> None:
+    print(highlight(Back.WHITE, " ENTER "), *text)
 
 
-def _print_clean(text: str) -> None:
-    print(_background(Back.GREEN, " CLEAN "), text)
+def cleaning(*text: Any) -> None:
+    print(highlight(Back.GREEN, " CLEAN "), *text)
 
 
-def _recursive_remove_directory(directory: Union[pathlib.Path, os.PathLike]) -> None:
+def recursive_remove_directory(directory: Union[pathlib.Path, os.PathLike]) -> None:
     if not isinstance(directory, pathlib.Path):
         directory = pathlib.Path(directory)
     for entry in directory.iterdir():
         if entry.is_dir():
-            _recursive_remove_directory(entry)
+            recursive_remove_directory(entry)
         else:
             entry.unlink()
     directory.rmdir()
 
 
-def _clean(directory: Union[pathlib.Path, os.PathLike]) -> None:
+def clean_directory(directory: Union[pathlib.Path, os.PathLike]) -> None:
     if not isinstance(directory, pathlib.Path):
         directory = pathlib.Path(directory)
     assert directory.is_dir()
     for entry in directory.iterdir():
-        if entry.is_dir() and entry.name == "__pycache__":
-            _recursive_remove_directory(entry)
-            _print_clean(str(entry))
+        if entry.is_dir() and entry.name == PYTHON_CACHE_DIRECTORY_NAME:
+            recursive_remove_directory(entry)
+            cleaning(entry)
 
 
-def _recursive_clean(directory: Union[pathlib.Path, os.PathLike]) -> None:
+def recursive_clean_directory(directory: Union[pathlib.Path, os.PathLike]) -> None:
     if not isinstance(directory, pathlib.Path):
         directory = pathlib.Path(directory)
     for entry in directory.iterdir():
         if entry.is_dir():
-            if entry.name == "__pycache__":
-                _recursive_remove_directory(entry)
-                _print_clean(str(entry))
+            if entry.name == PYTHON_CACHE_DIRECTORY_NAME:
+                recursive_remove_directory(entry)
+                cleaning(entry)
             else:
-                _recursive_clean(entry)
+                recursive_clean_directory(entry)
 
 
 def main():
-    _print_enter("==SCRIPT== path " + str(SCRIPT_PATH))
-    _clean(SCRIPT_PATH)
-    _print_enter("==PROJECT== path " + str(PROJECT_PATH))
-    _clean(PROJECT_PATH)
+    entering("==SCRIPT== path", SCRIPT_DIRECTORY)
+    clean_directory(SCRIPT_DIRECTORY)
+    entering("==PROJECT== path", PROJECT_DIRECTORY)
+    clean_directory(PROJECT_DIRECTORY)
     for target in RECURSIVE_CLEAN_TARGETS:
-        _print_enter(f"==PROJECT==/{target}")
-        _recursive_clean(PROJECT_PATH / target)
+        entering(f"==PROJECT==/{target}")
+        recursive_clean_directory(PROJECT_DIRECTORY / target)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -3,13 +3,12 @@ from typing import *
 import torch
 from torch import nn
 
-from . import console
-from .singleton import SingletonConstructor
+from fusion_detector.misc import console
+from fusion_detector.misc.singleton import SingletonConstructor
 
 __all__ = ["DeviceManager", "apply_device"]
 
-_TDeviceApplicable = TypeVar(
-    "_TDeviceApplicable", bound=Union[nn.Module, torch.Tensor])
+_TDeviceApplicable = TypeVar("_TDeviceApplicable", bound=Union[nn.Module, torch.Tensor])
 
 
 @SingletonConstructor
@@ -19,22 +18,22 @@ class _DeviceManager(object):
     It's redundant to determine current device **EVERYWHERE**,
         so let's use a global, singleton class.
     """
+
     def __init__(self):
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
 
     def apply(self, target: _TDeviceApplicable) -> _TDeviceApplicable:
         """Receives an object which can be transported to devices.
 
-        Here we just use a `TypeVar(bound=(nn.Module, torch.Tensor))`, so only 
+        Here we just use a `TypeVar(bound=(nn.Module, torch.Tensor))`, so only
             `nn.Module` and `torch.Tensor` is accepted.
-        Note that if there's multiple GPUs available, `nn.Module`s will be wrapped by 
+        Note that if there's multiple GPUs available, `nn.Module`s will be wrapped by
             `nn.DataParallel` to take advantage.
         """
         result = target.to(self.device)
         if isinstance(target, nn.Module):
             if torch.cuda.device_count() > 1:
-                console.message(
-                    f"=== Using {torch.cuda.device_count()} GPUs ===")
+                console.message(f"=== Using {torch.cuda.device_count()} GPUs ===")
                 result = nn.DataParallel(result)
         return result
 

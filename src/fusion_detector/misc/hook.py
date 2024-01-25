@@ -1,11 +1,10 @@
 from typing import *
 
+import console
 import torch
 from torch import nn
 
 __all__ = ["LayerOutputValueCollector", "LayerOutputValuesCollector"]
-
-from . import console
 
 
 class LayerOutputValueCollector(object):
@@ -45,9 +44,9 @@ class LayerOutputValueCollector(object):
             Assigns the `value` attribute with the latest `forward` output.
 
             Arguments:
-                target (Module): representing the module the hook is registered to, often 
+                target (Module): representing the module the hook is registered to, often
                     a layer in a machine-learning module.
-                input_tuple (tuple of Tensor): input(s) of this layer, may contain multiple 
+                input_tuple (tuple of Tensor): input(s) of this layer, may contain multiple
                     tensors.
                 output_tensor (Tensor): the output tensor of this layer.
             """
@@ -61,7 +60,7 @@ class LayerOutputValueCollector(object):
         return self
 
     def __exit__(self, exception_type, exception_value, exception_traceback) -> None:
-        """Removes the hook when exiting `with` block(s). 
+        """Removes the hook when exiting `with` block(s).
 
         Exception-related arguments are ignored.
         """
@@ -73,7 +72,7 @@ class LayerOutputValueCollector(object):
 class LayerOutputValuesCollector(object):
     """A context-managed class for hooking out results of a specified layer of a module.
 
-    Note that **all** results of `forward` within a `with` block are collected in the 
+    Note that **all** results of `forward` within a `with` block are collected in the
         `values` attribute.
     Usage::
 
@@ -114,7 +113,7 @@ class LayerOutputValuesCollector(object):
             Arguments:
                 target (Module): representing the module the hook is registered to,
                     often a layer in a machine-learning module.
-                input_tuple (tuple of Tensor): input(s) of this layer, may contain multiple 
+                input_tuple (tuple of Tensor): input(s) of this layer, may contain multiple
                     tensors.
                 output_tensor (Tensor): the output tensor of this layer.
             """
@@ -128,7 +127,7 @@ class LayerOutputValuesCollector(object):
         return self
 
     def __exit__(self, exception_type, exception_value, exception_traceback) -> None:
-        """Removes the hook when exiting `with` block(s). 
+        """Removes the hook when exiting `with` block(s).
 
         Exception-related arguments are ignored.
         """
