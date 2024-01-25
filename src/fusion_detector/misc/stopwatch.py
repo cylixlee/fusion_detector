@@ -4,7 +4,7 @@ from typing import *
 from . import console
 from .utility import attribute_of
 
-__all__ = ["StopwatchContext", "Timewatch"]
+__all__ = ["StopwatchContext", "Stopwatch"]
 
 _TResult = TypeVar("_TResult")
 
@@ -47,7 +47,7 @@ def _timewatch_wrapper(name: str, f: Callable[..., _TResult]):
     return wrapper
 
 
-class Timewatch(object):
+class Stopwatch(object):
     """A decorator class that adds time measurement to functions.
 
     Usage::

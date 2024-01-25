@@ -10,7 +10,7 @@ __all__ = [
     "TensorTransformAction",
     "attribute_of",
     "ListOrElementProxy",
-    "RedirectStream",
+    "PossibleRedirectStream",
 ]
 
 TEXT_FILE_SUFFIX = ".txt"
@@ -60,7 +60,7 @@ class ListOrElementProxy(Generic[_T]):
         return [self.data]
 
 
-class RedirectStream(object):
+class PossibleRedirectStream(object):
     def __init__(
         self,
         filename: Optional[os.PathLike],

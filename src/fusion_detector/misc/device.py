@@ -14,12 +14,13 @@ _TDeviceApplicable = TypeVar(
 
 @SingletonConstructor
 class _DeviceManager(object):
-    """A singleton class holding a `device` attribute indicating whether to use GPU or CPU.
+    """A singleton class holding a device attribute indicating whether to use GPU or CPU.
 
     It's redundant to determine current device **EVERYWHERE**,
         so let's use a global, singleton class.
     """
-    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+    def __init__(self):
+        self.device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
 
     def apply(self, target: _TDeviceApplicable) -> _TDeviceApplicable:
         """Receives an object which can be transported to devices.
@@ -39,9 +40,9 @@ class _DeviceManager(object):
 
 
 DeviceManager = _DeviceManager()
-""" A singleton instance holding a `device` attribute indicating whether to use GPU or CPU.
+""" A singleton instance holding a device attribute indicating whether to use GPU or CPU.
     
-It's redundant to determine current device **EVERYWHERE**,
+It's redundant to determine current device EVERYWHERE,
     so let's use a global, singleton class.
 """
 
@@ -50,9 +51,9 @@ def apply_device(
     first: _TDeviceApplicable,
     *more: _TDeviceApplicable,
 ) -> Union[_TDeviceApplicable, Tuple[_TDeviceApplicable, ...]]:
-    """A batched shortcut of `DeviceManager.apply`.
+    """A batched shortcut of DeviceManager.apply.
 
-    It receives multiple targets that are device-appliable, and apply
+    It receives multiple targets that are device-applicable, and apply
         them to current device.
     Returns a tuple in the same form of inputs, so we can use tuple deconstruction.
     """
