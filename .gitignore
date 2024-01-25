@@ -1,0 +1,10 @@
+# Local virtual environment
+/.venv/
+
+# Python compilation cache
+/**/__pycache__/
+
+# Binary Model and Dataset files
+/ImageBase/
+/ModelStructure/
+/ModelSummary/

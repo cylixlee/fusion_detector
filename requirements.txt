@@ -1,0 +1,4 @@
+colorama==0.4.6
+torch==2.1.2
+torchsummary==1.5.1
+tqdm==4.66.1
