@@ -1,8 +1,9 @@
 from typing import *
 
-import console
 import torch
 from torch import nn
+
+from . import console
 
 __all__ = ["LayerOutputValueCollector", "LayerOutputValuesCollector"]
 
