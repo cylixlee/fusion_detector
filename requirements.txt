@@ -14,14 +14,6 @@ lightning~=2.1.3
 # P.S. I don't know if this package is from torch official.
 torchsummary~=1.5.1
 
-# Colorize printing in console.
-colorama~=0.4.6
-
-# Progress bar in console.
-# Initially imported for beautify model-training progress but found it
-#     also very practical in estimating an operation's remaining time.
-tqdm~=4.66.1
-
 # Adversarial examples' codebase.
 # Used for generating adversarials, by applying adversarial attacks on
 #     normal images.

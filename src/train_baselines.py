@@ -60,10 +60,10 @@ def main():
     for index, module in enumerate(modules):
         trainer = lightning.Trainer(
             enable_checkpointing=False,
-            max_epochs=0,
+            max_epochs=EPOCHS,
             logger=False,
         )
-        trainer.fit(module, cifar.testset)
+        trainer.fit(module, cifar.trainset)
         trainer.save_checkpoint(
             DATA_PATH / "modules" / "CIFAR10" / f"{module_names[index]}.ckpt"
         )
