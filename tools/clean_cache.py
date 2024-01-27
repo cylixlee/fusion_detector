@@ -1,9 +1,3 @@
-if __name__ != "__main__":
-    import pathlib
-
-    filename = pathlib.PurePath(__file__).name
-    raise ModuleNotFoundError(f"`{filename}` is a tool script, not a lib.")
-
 import os
 import pathlib
 from typing import *
@@ -13,9 +7,9 @@ from colorama import Back, Fore
 
 colorama.init(autoreset=True)
 
-SCRIPT_DIRECTORY = pathlib.PurePath(__file__).parent
-PROJECT_DIRECTORY = SCRIPT_DIRECTORY.parent
-RECURSIVE_CLEAN_TARGETS = ["src", "tests"]
+from tools_common import PROJECT_DIRECTORY, SCRIPT_DIRECTORY
+
+RECURSIVE_CLEAN_TARGETS = ["src"]
 PYTHON_CACHE_DIRECTORY_NAME = "__pycache__"
 
 

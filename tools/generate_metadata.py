@@ -1,15 +1,9 @@
-import pathlib
-
-if __name__ != "__main__":
-    filename = pathlib.PurePath(__file__).name
-    raise ModuleNotFoundError(f"`{filename}` is a tool script, not a lib.")
+# Generate module metadata to inspect the structure and parameters.
 
 import sys
 
 import torchsummary
-
-SCRIPT_DIRECTORY = pathlib.PurePath(__file__).parent
-PROJECT_DIRECTORY = SCRIPT_DIRECTORY.parent
+from tools_common import PROJECT_DIRECTORY
 
 # Add project source directory into sys.path, to import modules without messing up
 # with source files.
