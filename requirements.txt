@@ -10,6 +10,9 @@ torchvision~=0.16.2
 #     repetitive labor.
 lightning~=2.1.3
 
+# The former `pytorch_lightning.metrics`
+torchmetrics
+
 # Used for inspecting models' output shape and other information.
 # P.S. I don't know if this package is from torch official.
 torchsummary~=1.5.1
@@ -18,3 +21,6 @@ torchsummary~=1.5.1
 # Used for generating adversarials, by applying adversarial attacks on
 #     normal images.
 cleverhans~=4.0.0
+
+# Used for colorize console outputs.
+colorama

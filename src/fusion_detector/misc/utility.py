@@ -11,6 +11,7 @@ __all__ = [
     "attribute_of",
     "ListOrElementProxy",
     "PossibleRedirectStream",
+    "AccuracyRecorder",
 ]
 
 TEXT_FILE_SUFFIX = ".txt"
@@ -90,3 +91,26 @@ class PossibleRedirectStream(object):
         self.file.close()
         # Restore system stream.
         sys.stdout = self.standard_output
+
+
+class AccuracyRecorder(object):
+    def __init__(self) -> None:
+        self._correct: int = 0
+        self._total: int = 0
+
+    @property
+    def correct(self) -> int:
+        return self._correct
+
+    @property
+    def total(self) -> int:
+        return self._total
+
+    def push(self, correct: int, total: int) -> None:
+        self._correct += correct
+        self._total += total
+
+    def pop(self) -> float:
+        accuracy = self._correct / self._total
+        self._correct = self._total = 0
+        return accuracy

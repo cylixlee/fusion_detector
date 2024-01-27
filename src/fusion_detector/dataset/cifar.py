@@ -10,10 +10,7 @@ __all__ = ["CifarDataset"]
 
 
 class CifarDataset(AbstractDataset):
-    """ImageNet-compatible CIFAR-10 Dataset.
-
-    This dataset is applied with transforms to match ImageNet's image shape.
-    """
+    """Thirdparty project `pytorch_cifar10`-compatible CIFAR10 dataset."""
 
     def __init__(
         self,
@@ -21,23 +18,32 @@ class CifarDataset(AbstractDataset):
         batch_size: int,
         num_workers: int = math.floor(os.cpu_count() / 2),
     ) -> None:
-        transform = transforms.Compose(
+        mean = (0.4914, 0.4822, 0.4465)
+        std = (0.2471, 0.2435, 0.2616)
+        train_transform = transforms.Compose(
+            [
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean, std),
+            ]
+        )
+        test_transform = transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize(0, 1),
-                transforms.Resize((224, 224), antialias=True),
+                transforms.Normalize(mean, std),
             ]
         )
         raw_trainset = datasets.CIFAR10(
             root,
             train=True,
-            transform=transform,
+            transform=train_transform,
             download=True,
         )
         raw_testset = datasets.CIFAR10(
             root,
             train=False,
-            transform=transform,
+            transform=test_transform,
             download=True,
         )
         self._trainloader = DataLoader(
