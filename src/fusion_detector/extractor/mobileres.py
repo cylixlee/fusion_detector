@@ -41,7 +41,7 @@ class MobileResExtractor(AbstractFeatureExtractor):
             self.resnet(x)
             resnet_features = resnet_collector.value
 
-        # [-1, 1280, 28, 28]
+        # [-1, 1280, 28, 28] if ResNet50
         mobilenet_features: torch.Tensor
         with misc.LayerOutputValueCollector(
             self.mobilenet_layer
@@ -50,5 +50,5 @@ class MobileResExtractor(AbstractFeatureExtractor):
             mobilenet_features = mobilenet_collector.value
         # [-1, 1280, 1, 1]
         mobilenet_features = self.average_pool(mobilenet_features)
-        # [-1, 2048+1280, 1, 1]
+        # [-1, 2048+1280, 1, 1] if ResNet50
         return torch.cat((resnet_features, mobilenet_features), dim=1)

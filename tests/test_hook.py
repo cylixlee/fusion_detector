@@ -17,11 +17,7 @@ from fusion_detector.thirdparty.pytorch_cifar10 import module as M
 class LayerOutputValueCollectorTestCase(unittest.TestCase):
     def test_hook(self) -> None:
         resnet = M.resnet18(pretrained=True)
-        data = dataset.CifarDataset(
-            PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10",
-            batch_size=8,
-        )
-        x, _ = next(iter(data.testset))
+        x, _ = dataset.CifarBatchDataset().batch
         with misc.LayerOutputValueCollector(resnet.avgpool) as collector:
             y: torch.Tensor = resnet(x)
             hookvalue = collector.value

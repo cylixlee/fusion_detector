@@ -25,11 +25,7 @@ class ExtractorTestCase(unittest.TestCase):
             self.assertFalse(parameter.requires_grad)
 
     def test_mobileres_extraction_shape(self):
-        data = dataset.CifarDataset(
-            PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10",
-            batch_size=8,
-        )
-        x, _ = next(iter(data.testset))
+        x, _ = dataset.CifarBatchDataset().batch
         y: torch.Tensor = self.extractor(x)
         self.assertTrue(y.shape, (-1, 2048 + 1280, 1, 1))
 
