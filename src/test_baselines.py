@@ -1,15 +1,14 @@
 import pathlib
 from typing import *
-from typing import Any
 
 import lightning
 import torch
 from lightning.pytorch.utilities.types import STEP_OUTPUT
 from torch import nn
 
+import fusion_detector.thirdparty.pytorch_cifar10.module as M
 from fusion_detector import dataset
 from fusion_detector.misc import AccuracyRecorder
-from thirdparty.pytorch_cifar10 import module as M
 
 SCRIPT_DIRECTORY = pathlib.PurePath(__file__).parent
 PROJECT_DIRECTORY = SCRIPT_DIRECTORY.parent
@@ -63,13 +62,13 @@ def test_baseline(
 
 
 def main():
-    cifar = dataset.CifarDataset(
+    data = dataset.CifarDataset(
         PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10",
         batch_size=16,
     )
     accuracies = {}
     for name, constructor in ALL_PRETRAINED_MODULES.items():
-        accuracies[name] = test_baseline(constructor, cifar)
+        accuracies[name] = test_baseline(constructor, data)
     for name, accuracy in accuracies.items():
         print(name, "accuracy", accuracy)
 

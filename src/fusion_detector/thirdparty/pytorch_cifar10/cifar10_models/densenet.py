@@ -1,4 +1,3 @@
-import os
 import pathlib
 from collections import OrderedDict
 
@@ -185,7 +184,10 @@ def _densenet(
         script_dir = pathlib.PurePath(__file__).parent
         reference_dir = script_dir.parent  # the `pytorch_cifar10` directory
         thirdparty_dir = reference_dir.parent  # the `thirdparty` directory
-        source_dir = thirdparty_dir.parent  # the `src` directory
+        inner_project_dir = (
+            thirdparty_dir.parent
+        )  # the inner `fusion_detector` directory
+        source_dir = inner_project_dir.parent  # the `src` directory
         project_dir = source_dir.parent  # the outer `fusion_detector directory`
         state_dict_dir = project_dir / "data" / "modules" / "CIFAR10"
         state_dict = torch.load(

@@ -85,7 +85,7 @@ class LayerOutputValuesCollector(object):
             nn.ReLU(inplace=True),
             nn.Linear(64, 1),
         )
-        with LayerOutputValueListCollector(module[0]) as collector:
+        with LayerOutputValuesCollector(module[0]) as collector:
             module(torch.rand(1, 224))
             module(torch.rand(1, 224))
             module(torch.rand(1, 224))
