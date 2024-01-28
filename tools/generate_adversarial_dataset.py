@@ -1,9 +1,13 @@
+import math
+import os
 import pathlib
 import sys
 from typing import *
 
 import torch
 from tools_common import PROJECT_DIRECTORY
+from torch.utils.data.dataloader import DataLoader
+from torchvision import datasets, transforms
 from tqdm import tqdm
 
 project_path = str(PROJECT_DIRECTORY)
@@ -27,11 +31,13 @@ PERTURBATION_CONSTRUCTORS = {
     "PGD": perturbation.pgd,
 }
 
+CIFAR_ROOT = PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10"
 CIFAR_ADVERSARIAL_ROOT = PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10Adversarial"
 SEGMENT_SIZE = 10000
 BATCH_SIZE = 25
 
 CUDA_AVAILABLE = torch.cuda.is_available()
+NUM_WORKERS = math.floor(os.cpu_count() / 2)
 
 
 def use_cuda(x):
@@ -46,7 +52,30 @@ def main():
         name: use_cuda(constructor(pretrained=True))
         for name, constructor in PRETRAINED_MODULE_CONSTRUCTORS.items()
     }
-    cifar = dataset.CifarDataset(BATCH_SIZE)
+    trainset = datasets.CIFAR10(
+        CIFAR_ROOT,
+        train=True,
+        transform=transforms.ToTensor(),
+        download=True,
+    )
+    trainloader = DataLoader(
+        trainset,
+        batch_size=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
+        persistent_workers=True,
+    )
+    testset = datasets.CIFAR10(
+        CIFAR_ROOT,
+        train=False,
+        transform=transforms.ToTensor(),
+        download=True,
+    )
+    testloader = DataLoader(
+        testset,
+        batch_size=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
+        persistent_workers=True,
+    )
     # Generate testset
     for victim_name, victim in tqdm(
         pretrained_modules.items(),
@@ -61,7 +90,7 @@ def main():
             attack = constructor(victim)
             adversarial_list = []
             label_list = []
-            for x, label in tqdm(cifar.testset, desc="Testset", leave=False):
+            for x, label in tqdm(testloader, desc="Testset", leave=False):
                 x = use_cuda(x)
                 label = use_cuda(label)
                 adversarial = attack(x).clone().detach()
@@ -92,7 +121,7 @@ def main():
             label_list = []
             count = 0
             segment = 0
-            for x, label in tqdm(cifar.trainset, desc="Trainset", leave=False):
+            for x, label in tqdm(trainloader, desc="Trainset", leave=False):
                 x = use_cuda(x)
                 label = use_cuda(label)
                 adversarial = attack(x).clone().detach()

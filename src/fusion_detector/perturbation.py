@@ -31,9 +31,19 @@ def fgsm(
     module: nn.Module,
     epsilon: float = 0.1,
     norm: AvailableNorm = AvailableNorm.INFINITY,
+    clip_min: float = 0,
+    clip_max: float = 1,
 ) -> TensorTransformAction:
     def _wrapper(x: torch.Tensor) -> torch.Tensor:
-        return fast_gradient_method(module, x, epsilon, norm.value)
+        return fast_gradient_method(
+            module,
+            x,
+            epsilon,
+            norm.value,
+            clip_min,
+            clip_max,
+            sanity_checks=False,
+        )
 
     return _wrapper
 
@@ -44,22 +54,20 @@ def pgd(
     step_epsilon: float = 0.05,
     iterations: int = 10,
     norm: AvailableNorm = AvailableNorm.INFINITY,
+    clip_min: float = 0,
+    clip_max: float = 1,
 ) -> TensorTransformAction:
     def _wrapper(x: torch.Tensor) -> torch.Tensor:
         return projected_gradient_descent(
-            module, x, epsilon, step_epsilon, iterations, norm.value
+            module,
+            x,
+            epsilon,
+            step_epsilon,
+            iterations,
+            norm.value,
+            clip_min,
+            clip_max,
+            sanity_checks=False,
         )
-
-    return _wrapper
-
-
-def sparsel1(
-    module: nn.Module,
-    epsilon: float,
-    step_epsilon: float,
-    iterations: int,
-) -> TensorTransformAction:
-    def _wrapper(x: torch.Tensor) -> torch.Tensor:
-        return sparse_l1_descent(module, x, epsilon, step_epsilon, iterations)
 
     return _wrapper
