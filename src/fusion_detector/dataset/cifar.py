@@ -14,8 +14,11 @@ from torchvision import datasets, transforms
 from .abstract import AbstractDataset
 
 __all__ = [
+    "CifarDataset",
     "NormalizedCifarDataset",
     "NormalizedCifarBatchDataset",
+    "CifarFgsmAdversarialDataSource",
+    "CifarPgdAdversarialDataSource",
     "CifarFgsmAdversarialDataset",
     "CifarPgdAdversarialDataset",
     "CifarAdversarialBatchDataset",
@@ -30,6 +33,49 @@ DATASET_DIRECTORY = PROJECT_DIRECTORY / "data" / "datasets"
 DEFAULT_DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
 
 
+class CifarDataset(AbstractDataset):
+    def __init__(
+        self,
+        batch_size: int,
+        root: str = str(DATASET_DIRECTORY / "CIFAR10"),
+        num_workers: int = 0,
+    ) -> None:
+        raw_trainset = datasets.CIFAR10(
+            root,
+            train=True,
+            transform=transforms.ToTensor(),
+            target_transform=lambda label: torch.zeros_like(label),
+            download=True,
+        )
+        raw_testset = datasets.CIFAR10(
+            root,
+            train=False,
+            transform=transforms.ToTensor(),
+            target_transform=lambda label: torch.zeros_like(label),
+            download=True,
+        )
+        self._trainloader = DataLoader(
+            raw_trainset,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            persistent_workers=num_workers > 0,
+        )
+        self._testloader = DataLoader(
+            raw_testset,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            persistent_workers=num_workers > 0,
+        )
+
+    @property
+    def trainset(self) -> DataLoader:
+        return self._trainloader
+
+    @property
+    def testset(self) -> DataLoader:
+        return self._testloader
+
+
 class NormalizedCifarDataset(AbstractDataset):
     """Thirdparty project `pytorch_cifar10`-compatible CIFAR10 dataset."""
 
@@ -37,7 +83,7 @@ class NormalizedCifarDataset(AbstractDataset):
         self,
         batch_size: int,
         root: str = str(DATASET_DIRECTORY / "CIFAR10"),
-        num_workers: int = math.floor(os.cpu_count() / 4),
+        num_workers: int = 0,
     ) -> None:
         mean = (0.4914, 0.4822, 0.4465)
         std = (0.2471, 0.2435, 0.2616)
@@ -71,13 +117,13 @@ class NormalizedCifarDataset(AbstractDataset):
             raw_trainset,
             batch_size=batch_size,
             num_workers=num_workers,
-            persistent_workers=True,
+            persistent_workers=num_workers > 0,
         )
         self._testloader = DataLoader(
             raw_testset,
             batch_size=batch_size,
             num_workers=num_workers,
-            persistent_workers=True,
+            persistent_workers=num_workers > 0,
         )
 
     @property
@@ -152,7 +198,7 @@ class _CifarSingleAdversarialAttackDataSource(Dataset):
         self.current_victim: Optional[str] = None
         self.segment: Optional[List[torch.Tensor]] = None
 
-    def __getitem__(self, index: int) -> Any:
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         segment_index = index // self.__class__.IMAGES_PER_SEGMENT
         example_index = index % self.__class__.IMAGES_PER_SEGMENT
         if not self.train:
@@ -164,20 +210,22 @@ class _CifarSingleAdversarialAttackDataSource(Dataset):
                 )
             x, label = self.segment[0][example_index], self.segment[1][example_index]
             if self.transform is not None:
-                return self.transform(x), label
-            return x, label
+                # return self.transform(x), label
+                return self.transform(x), torch.scalar_tensor(1)
+            # return x, label
+            return x, torch.scalar_tensor(1)
         victim_index = segment_index // self.__class__.TRAIN_SEGMENTS
         segment_index = segment_index % self.__class__.TRAIN_SEGMENTS
         if self.current_victim != self.victims[victim_index]:
             self.current_victim = self.victims[victim_index]
             self.segment = torch.load(
-                str(self.root / self.current_victim / f"trainset_{victim_index}.pt"),
+                str(self.root / self.current_victim / f"trainset_{segment_index}.pt"),
                 map_location=self.map_location,
             )
         x, label = self.segment[0][example_index], self.segment[1][example_index]
         if self.transform is not None:
-            return self.transform(x), label
-        return x, label
+            return self.transform(x), torch.scalar_tensor(1)
+        return x, torch.scalar_tensor(1)
 
     def __len__(self) -> int:
         if self.train:
@@ -189,10 +237,10 @@ class _CifarSingleAdversarialAttackDataSource(Dataset):
         return self.__class__.IMAGES_PER_SEGMENT * len(self.victims)
 
 
-class _CifarFgsmAdversarialDataSource(_CifarSingleAdversarialAttackDataSource):
+class CifarFgsmAdversarialDataSource(_CifarSingleAdversarialAttackDataSource):
     def __init__(
         self,
-        root: os.PathLike,
+        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
         train: bool = True,
         transform: Optional[Callable] = None,
         map_location: Any = DEFAULT_DEVICE,
@@ -202,10 +250,10 @@ class _CifarFgsmAdversarialDataSource(_CifarSingleAdversarialAttackDataSource):
         super().__init__(root / "FGSM", train, transform, map_location)
 
 
-class _CifarPgdAdversarialDataSource(_CifarSingleAdversarialAttackDataSource):
+class CifarPgdAdversarialDataSource(_CifarSingleAdversarialAttackDataSource):
     def __init__(
         self,
-        root: os.PathLike,
+        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
         train: bool = True,
         transform: Optional[Callable] = None,
         map_location: Any = DEFAULT_DEVICE,
@@ -222,18 +270,11 @@ class _CifarTemplateAdversarialDataset(AbstractDataset):
         batch_size: int,
         root: os.PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
         map_location: Any = DEFAULT_DEVICE,
-        num_workers: int = math.floor(os.cpu_count() / 2),
+        num_workers: int = 0,
     ) -> None:
-        train_transform = transforms.Compose(
-            [
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
-            ]
-        )
         raw_trainset = underlying(
             root,
             train=True,
-            transform=train_transform,
             map_location=map_location,
         )
         raw_testset = underlying(
@@ -245,13 +286,13 @@ class _CifarTemplateAdversarialDataset(AbstractDataset):
             raw_trainset,
             batch_size=batch_size,
             num_workers=num_workers,
-            persistent_workers=True,
+            persistent_workers=num_workers > 0,
         )
         self._testloader = DataLoader(
             raw_testset,
             batch_size=batch_size,
             num_workers=num_workers,
-            persistent_workers=True,
+            persistent_workers=num_workers > 0,
         )
 
     @property
@@ -269,10 +310,10 @@ class CifarFgsmAdversarialDataset(_CifarTemplateAdversarialDataset):
         batch_size: int,
         root: os.PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
         map_location: Any = DEFAULT_DEVICE,
-        num_workers: int = math.floor(os.cpu_count() / 2),
+        num_workers: int = 0,
     ) -> None:
         super().__init__(
-            _CifarFgsmAdversarialDataSource,
+            CifarFgsmAdversarialDataSource,
             batch_size,
             root,
             map_location,
@@ -286,10 +327,10 @@ class CifarPgdAdversarialDataset(_CifarTemplateAdversarialDataset):
         batch_size: int,
         root: PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
         map_location: Any = DEFAULT_DEVICE,
-        num_workers: int = math.floor(os.cpu_count() / 2),
+        num_workers: int = 0,
     ) -> None:
         super().__init__(
-            _CifarPgdAdversarialDataSource,
+            CifarPgdAdversarialDataSource,
             batch_size,
             root,
             map_location,
