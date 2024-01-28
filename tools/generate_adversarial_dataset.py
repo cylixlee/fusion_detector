@@ -31,13 +31,19 @@ CIFAR_ADVERSARIAL_ROOT = PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10Adver
 SEGMENT_SIZE = 10000
 BATCH_SIZE = 25
 
-DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+CUDA_AVAILABLE = torch.cuda.is_available()
+
+
+def use_cuda(x):
+    if CUDA_AVAILABLE:
+        return x.cuda()
+    return x
 
 
 def main():
     assert SEGMENT_SIZE % BATCH_SIZE == 0
     pretrained_modules = {
-        name: constructor(pretrained=True)
+        name: use_cuda(constructor(pretrained=True))
         for name, constructor in PRETRAINED_MODULE_CONSTRUCTORS.items()
     }
     cifar = dataset.CifarDataset(BATCH_SIZE)
@@ -45,18 +51,22 @@ def main():
     for victim_name, victim in tqdm(
         pretrained_modules.items(),
         desc="Generating Testset",
+        leave=False,
     ):
         for attack_name, constructor in tqdm(
             PERTURBATION_CONSTRUCTORS.items(),
             desc="Attacks",
+            leave=False,
         ):
             attack = constructor(victim)
             adversarial_list = []
             label_list = []
-            for x, label in tqdm(cifar.testset, desc="Testset"):
+            for x, label in tqdm(cifar.testset, desc="Testset", leave=False):
+                x = use_cuda(x)
+                label = use_cuda(label)
                 adversarial = attack(x).clone().detach()
                 adversarial_list.append(adversarial)
-                label_list.append(label)
+                label_list.append(label.clone().detach())
             adversarials = torch.cat(adversarial_list)
             labels = torch.cat(label_list)
             save_directory = pathlib.Path(
@@ -66,25 +76,28 @@ def main():
                 save_directory.mkdir(parents=True)
             save_path = str(save_directory / "testset.pt")
             torch.save([adversarials, labels], save_path)
-        return
     # Generate trainset
     for victim_name, victim in tqdm(
         pretrained_modules.items(),
         desc="Generating Trainset",
+        leave=False,
     ):
         for attack_name, constructor in tqdm(
             PERTURBATION_CONSTRUCTORS.items(),
             desc="Attacks",
+            leave=False,
         ):
             attack = constructor(victim)
             adversarial_list = []
             label_list = []
             count = 0
             segment = 0
-            for x, label in tqdm(cifar.trainset, desc="Trainset"):
+            for x, label in tqdm(cifar.trainset, desc="Trainset", leave=False):
+                x = use_cuda(x)
+                label = use_cuda(label)
                 adversarial = attack(x).clone().detach()
                 adversarial_list.append(adversarial)
-                label_list.append(label)
+                label_list.append(label.clone().detach())
                 count += len(label)
                 if count == SEGMENT_SIZE:
                     adversarials = torch.cat(adversarial_list)
