@@ -211,9 +211,9 @@ class _CifarSingleAdversarialAttackDataSource(Dataset):
             x, label = self.segment[0][example_index], self.segment[1][example_index]
             if self.transform is not None:
                 # return self.transform(x), label
-                return self.transform(x), torch.scalar_tensor(1)
+                return self.transform(x), torch.scalar_tensor(1.0)
             # return x, label
-            return x, torch.scalar_tensor(1)
+            return x, torch.scalar_tensor(1.0)
         victim_index = segment_index // self.__class__.TRAIN_SEGMENTS
         segment_index = segment_index % self.__class__.TRAIN_SEGMENTS
         if self.current_victim != self.victims[victim_index]:
@@ -224,8 +224,8 @@ class _CifarSingleAdversarialAttackDataSource(Dataset):
             )
         x, label = self.segment[0][example_index], self.segment[1][example_index]
         if self.transform is not None:
-            return self.transform(x), torch.scalar_tensor(1)
-        return x, torch.scalar_tensor(1)
+            return self.transform(x), torch.scalar_tensor(1.0)
+        return x, torch.scalar_tensor(1.0)
 
     def __len__(self) -> int:
         if self.train:

@@ -14,6 +14,7 @@ EXCLUDSIVE_ENTRIES = [
     "metadata",
     "tests",
     "notebooks",
+    "log",
     "*.md",
 ]
 

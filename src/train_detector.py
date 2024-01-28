@@ -40,7 +40,7 @@ class MobileResLinearAdversarialDetector(lightning.LightningModule):
         # Binary classification (adversarial, or non-adversarial)
         y = self.classifier(x).view(-1)
         # Return loss to lightning framework.
-        loss = F.binary_cross_entropy_with_logits(y, label.float())
+        loss = F.binary_cross_entropy_with_logits(y, label)
         self.log("train loss", loss.item(), on_step=True, prog_bar=True)
         return loss
 
@@ -50,7 +50,7 @@ class MobileResLinearAdversarialDetector(lightning.LightningModule):
         x = self.extractor(x)
         # Binary classification (adversarial, or non-adversarial)
         y = self.classifier(x).view(-1)
-        predict = torch.argmax(y, dim=1)
+        predict = torch.floor(y + 0.5)
         # Collect statistics
         correct = torch.eq(predict, label).sum().item()
         total = len(label)
@@ -66,7 +66,7 @@ class CompoundCifarDataSource(Dataset):
             str(PROJECT_PATH / "data" / "datasets" / "CIFAR10"),
             train=train,
             transform=transforms.ToTensor(),
-            target_transform=lambda _: torch.scalar_tensor(0),
+            target_transform=lambda _: torch.scalar_tensor(0.0),
             download=True,
         )
         self.fgsmlen = len(self.fgsm)
@@ -112,7 +112,7 @@ def main():
         persistent_workers=NUM_WORKERS > 0,
     )
 
-    trainer.fit(detector, trainloader)
+    # trainer.fit(detector, trainloader)
     trainer.test(detector, testloader)
     print(f"Tested with {detector.accuracy.push()} accuracy.")
 
