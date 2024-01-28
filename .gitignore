@@ -10,3 +10,7 @@
 
 # Data files. Model state dictionary and image dataset binaries.
 /data/
+
+# Jupyter notebooks for development-time experiments.
+# I decide to synchronize them too.
+# /notebooks/

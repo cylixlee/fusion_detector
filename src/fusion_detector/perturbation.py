@@ -29,7 +29,7 @@ class AvailableNorm(Enum):
 
 def fgsm(
     module: nn.Module,
-    epsilon: float,
+    epsilon: float = 0.1,
     norm: AvailableNorm = AvailableNorm.INFINITY,
 ) -> TensorTransformAction:
     def _wrapper(x: torch.Tensor) -> torch.Tensor:
@@ -40,9 +40,9 @@ def fgsm(
 
 def pgd(
     module: nn.Module,
-    epsilon: float,
-    step_epsilon: float,
-    iterations: int,
+    epsilon: float = 0.1,
+    step_epsilon: float = 0.05,
+    iterations: int = 10,
     norm: AvailableNorm = AvailableNorm.INFINITY,
 ) -> TensorTransformAction:
     def _wrapper(x: torch.Tensor) -> torch.Tensor:

@@ -24,3 +24,6 @@ cleverhans~=4.0.0
 
 # Used for colorize console outputs.
 colorama
+
+# Used for showing progressbar.
+tqdm

@@ -12,7 +12,9 @@ EXCLUDSIVE_ENTRIES = [
     ".*",
     "data",
     "metadata",
-    "tools",
+    "tests",
+    "notebooks",
+    "*.md",
 ]
 
 
