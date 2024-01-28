@@ -4,8 +4,10 @@ import pathlib
 import sys
 from typing import *
 
+import matplotlib.pyplot as plt
 import torch
 from tools_common import PROJECT_DIRECTORY
+from torch import nn
 from torch.utils.data.dataloader import DataLoader
 from torchvision import datasets, transforms
 from tqdm import tqdm
@@ -46,12 +48,7 @@ def use_cuda(x):
     return x
 
 
-def main():
-    assert SEGMENT_SIZE % BATCH_SIZE == 0
-    pretrained_modules = {
-        name: use_cuda(constructor(pretrained=True))
-        for name, constructor in PRETRAINED_MODULE_CONSTRUCTORS.items()
-    }
+def load_cifar() -> Tuple[DataLoader, DataLoader]:
     trainset = datasets.CIFAR10(
         CIFAR_ROOT,
         train=True,
@@ -76,10 +73,29 @@ def main():
         num_workers=NUM_WORKERS,
         persistent_workers=True,
     )
-    # Generate testset
+    return trainloader, testloader
+
+
+def save_segment(
+    adversarial_list: List[torch.Tensor],
+    label_list: List[torch.Tensor],
+    path: pathlib.PurePath,
+) -> None:
+    adversarials = torch.cat(adversarial_list)
+    labels = torch.cat(label_list)
+    savepath = pathlib.Path(path) if not isinstance(path, pathlib.Path) else path
+    save_directory = savepath.parent
+    if not save_directory.exists():
+        save_directory.mkdir(parents=True)
+    torch.save([adversarials, labels], str(savepath))
+
+
+def generate_dataset(victims: List[nn.Module], data: DataLoader, desc: str) -> None:
+    dataset_size = data.batch_size * len(data)
+    single_segment = dataset_size <= SEGMENT_SIZE
     for victim_name, victim in tqdm(
-        pretrained_modules.items(),
-        desc="Generating Testset",
+        victims.items(),
+        desc=f"Generating {desc}",
         leave=False,
     ):
         for attack_name, constructor in tqdm(
@@ -87,57 +103,32 @@ def main():
             desc="Attacks",
             leave=False,
         ):
-            attack = constructor(victim)
-            adversarial_list = []
-            label_list = []
-            for x, label in tqdm(testloader, desc="Testset", leave=False):
-                x = use_cuda(x)
-                label = use_cuda(label)
-                adversarial = attack(x).clone().detach()
-                adversarial_list.append(adversarial)
-                label_list.append(label.clone().detach())
-            adversarials = torch.cat(adversarial_list)
-            labels = torch.cat(label_list)
-            save_directory = pathlib.Path(
-                CIFAR_ADVERSARIAL_ROOT / attack_name / victim_name
-            )
-            if not save_directory.exists():
-                save_directory.mkdir(parents=True)
-            save_path = str(save_directory / "testset.pt")
-            torch.save([adversarials, labels], save_path)
-    # Generate trainset
-    for victim_name, victim in tqdm(
-        pretrained_modules.items(),
-        desc="Generating Trainset",
-        leave=False,
-    ):
-        for attack_name, constructor in tqdm(
-            PERTURBATION_CONSTRUCTORS.items(),
-            desc="Attacks",
-            leave=False,
-        ):
+            save_directory = CIFAR_ADVERSARIAL_ROOT / attack_name / victim_name
             attack = constructor(victim)
             adversarial_list = []
             label_list = []
             count = 0
             segment = 0
-            for x, label in tqdm(trainloader, desc="Trainset", leave=False):
+            for x, label in tqdm(data, desc=desc, leave=False):
                 x = use_cuda(x)
                 label = use_cuda(label)
                 adversarial = attack(x).clone().detach()
                 adversarial_list.append(adversarial)
                 label_list.append(label.clone().detach())
                 count += len(label)
-                if count == SEGMENT_SIZE:
-                    adversarials = torch.cat(adversarial_list)
-                    labels = torch.cat(label_list)
-                    save_directory = pathlib.Path(
-                        CIFAR_ADVERSARIAL_ROOT / attack_name / victim_name
+                if count == min(dataset_size, SEGMENT_SIZE):
+                    if single_segment:
+                        save_segment(
+                            adversarial_list,
+                            label_list,
+                            save_directory / f"{desc}.pt",
+                        )
+                        return
+                    save_segment(
+                        adversarial_list,
+                        label_list,
+                        save_directory / f"{desc}_{segment}.pt",
                     )
-                    if not save_directory.exists():
-                        save_directory.mkdir(parents=True)
-                    save_path = str(save_directory / f"trainset_{segment}.pt")
-                    torch.save([adversarials, labels], save_path)
                     segment += 1
                     count = 0
                     adversarial_list.clear()
@@ -145,15 +136,22 @@ def main():
             if len(adversarial_list) > 0:
                 assert len(adversarial_list) == len(label_list)
                 assert len(adversarial_list) < SEGMENT_SIZE
-                adversarials = torch.cat(adversarial_list)
-                labels = torch.cat(label_list)
-                save_directory = pathlib.Path(
-                    CIFAR_ADVERSARIAL_ROOT / attack_name / victim_name
+                save_segment(
+                    adversarial_list,
+                    label_list,
+                    save_directory / f"{desc}_{segment}.pt",
                 )
-                if not save_directory.exists():
-                    save_directory.mkdir(parents=True)
-                save_path = str(save_directory / f"trainset_{segment}.pt")
-                torch.save([adversarials, labels], save_path)
+
+
+def main():
+    assert SEGMENT_SIZE % BATCH_SIZE == 0
+    pretrained_modules = {
+        name: use_cuda(constructor(pretrained=True))
+        for name, constructor in PRETRAINED_MODULE_CONSTRUCTORS.items()
+    }
+    trainloader, testloader = load_cifar()
+    generate_dataset(pretrained_modules, testloader, "testset")
+    generate_dataset(pretrained_modules, trainloader, "trainset")
 
 
 # Guideline recommended Main Guard

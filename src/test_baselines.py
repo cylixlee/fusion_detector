@@ -62,7 +62,7 @@ def test_baseline(
 
 
 def main():
-    data = dataset.CifarDataset(16)
+    data = dataset.NormalizedCifarDataset(16)
     accuracies = {}
     for name, constructor in ALL_PRETRAINED_MODULES.items():
         accuracies[name] = test_baseline(constructor, data)

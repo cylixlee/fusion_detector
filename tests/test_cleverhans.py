@@ -28,7 +28,7 @@ def no_attack(x: torch.Tensor) -> torch.Tensor:
 class CleverhansTestCase(unittest.TestCase):
     def __init__(self, methodName: str = "runTest") -> None:
         super().__init__(methodName)
-        self.x, self.labels = dataset.CifarBatchDataset().batch
+        self.x, self.labels = dataset.NormalizedCifarBatchDataset().batch
         self.modules = {}
         for name, constructor in PRETRAINED_MODULE_CONSTRUCTORS.items():
             self.modules[name] = constructor(pretrained=True)

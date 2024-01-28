@@ -16,12 +16,12 @@ CIFAR_BATCH_ROOT = PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10Batch"
 
 
 def main():
-    cifar = dataset.CifarDataset(32)
+    cifar = dataset.NormalizedCifarDataset(32)
     batch = next(iter(cifar.testset))
-    savepath = pathlib.Path(CIFAR_BATCH_ROOT / "batch.pt")
+    savepath = pathlib.Path(CIFAR_BATCH_ROOT)
     if not savepath.exists():
         savepath.mkdir(parents=True)
-    torch.save(batch, str(savepath))
+    torch.save(batch, str(savepath / "batch.pt"))
 
 
 # Guideline recommended Main Guard
