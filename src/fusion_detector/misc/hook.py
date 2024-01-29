@@ -25,7 +25,7 @@ class LayerOutputValueCollector(object):
             module(torch.rand(1, 224))
             print(collector.value)
 
-    You can use this class to collect the output of a specified layer of any PyTorch module.
+    You can use the class to collect the output of a specified layer of any PyTorch model.
     """
 
     def __init__(self, layer: nn.Module) -> None:

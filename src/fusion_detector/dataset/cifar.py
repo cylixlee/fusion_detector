@@ -1,6 +1,7 @@
 import math
 import os
 import pathlib
+import pickle
 from math import floor
 from os import PathLike, cpu_count
 from typing import *
@@ -22,6 +23,7 @@ __all__ = [
     "CifarFgsmAdversarialDataset",
     "CifarPgdAdversarialDataset",
     "CifarAdversarialBatchDataset",
+    "CifarHybridDataSource",
 ]
 
 SCRIPT_DIRECTORY = pathlib.PurePath(__file__).parent
@@ -30,7 +32,7 @@ SOURCE_DIRECTORY = INNER_PROJECT_DIRECTORY.parent
 PROJECT_DIRECTORY = SOURCE_DIRECTORY.parent
 DATASET_DIRECTORY = PROJECT_DIRECTORY / "data" / "datasets"
 
-DEFAULT_DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+DEFAULT_DEVICE = "cpu"
 
 
 class CifarDataset(AbstractDataset):
@@ -176,6 +178,7 @@ class NormalizedCifarBatchDataset(AbstractDataset):
 class _CifarSingleAdversarialAttackDataSource(Dataset):
     IMAGES_PER_SEGMENT = 10000
     TRAIN_SEGMENTS = 5
+    SCALAR_ONE = torch.scalar_tensor(1.0)
 
     def __init__(
         self,
@@ -196,36 +199,43 @@ class _CifarSingleAdversarialAttackDataSource(Dataset):
             self.victims.append(entry)
         self.root = root
         self.current_victim: Optional[str] = None
-        self.segment: Optional[List[torch.Tensor]] = None
+        self.segment = None
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         segment_index = index // self.__class__.IMAGES_PER_SEGMENT
         example_index = index % self.__class__.IMAGES_PER_SEGMENT
         if not self.train:
-            if self.current_victim != self.victims[segment_index]:
-                self.current_victim = self.victims[segment_index]
-                self.segment = torch.load(
-                    str(self.root / self.current_victim / "testset.pt"),
-                    map_location=self.map_location,
-                )
-            x, label = self.segment[0][example_index], self.segment[1][example_index]
+            victim_index = segment_index
+            if self.current_victim != self.victims[victim_index]:
+                self.current_victim = self.victims[victim_index]
+                with open(
+                    str(self.root / self.current_victim / "testset.segment"), "rb"
+                ) as file:
+                    self.segment = pickle.load(file)
+            # x, label = self.segment[example_index][0], self.segment[example_index][1]
+            x = self.segment[example_index][0]
             if self.transform is not None:
                 # return self.transform(x), label
-                return self.transform(x), torch.scalar_tensor(1.0)
+                return self.transform(x), self.__class__.SCALAR_ONE
             # return x, label
-            return x, torch.scalar_tensor(1.0)
+            return x, self.__class__.SCALAR_ONE
         victim_index = segment_index // self.__class__.TRAIN_SEGMENTS
         segment_index = segment_index % self.__class__.TRAIN_SEGMENTS
         if self.current_victim != self.victims[victim_index]:
+            self.segment = []
             self.current_victim = self.victims[victim_index]
-            self.segment = torch.load(
-                str(self.root / self.current_victim / f"trainset_{segment_index}.pt"),
-                map_location=self.map_location,
-            )
-        x, label = self.segment[0][example_index], self.segment[1][example_index]
+            for i in range(self.__class__.TRAIN_SEGMENTS):
+                with open(
+                    str(self.root / self.current_victim / f"trainset_{i}.segment"),
+                    "rb",
+                ) as file:
+                    data = pickle.load(file)
+                    self.segment.append(data)
+        # x, label = self.segment[example_index][0], self.segment[example_index][1]
+        x = self.segment[segment_index][example_index][0]
         if self.transform is not None:
-            return self.transform(x), torch.scalar_tensor(1.0)
-        return x, torch.scalar_tensor(1.0)
+            return self.transform(x), self.__class__.SCALAR_ONE
+        return x, self.__class__.SCALAR_ONE
 
     def __len__(self) -> int:
         if self.train:
@@ -240,7 +250,7 @@ class _CifarSingleAdversarialAttackDataSource(Dataset):
 class CifarFgsmAdversarialDataSource(_CifarSingleAdversarialAttackDataSource):
     def __init__(
         self,
-        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
+        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10AdversarialImageSet",
         train: bool = True,
         transform: Optional[Callable] = None,
         map_location: Any = DEFAULT_DEVICE,
@@ -253,7 +263,7 @@ class CifarFgsmAdversarialDataSource(_CifarSingleAdversarialAttackDataSource):
 class CifarPgdAdversarialDataSource(_CifarSingleAdversarialAttackDataSource):
     def __init__(
         self,
-        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
+        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10AdversarialImageSet",
         train: bool = True,
         transform: Optional[Callable] = None,
         map_location: Any = DEFAULT_DEVICE,
@@ -268,18 +278,20 @@ class _CifarTemplateAdversarialDataset(AbstractDataset):
         self,
         underlying: Any,
         batch_size: int,
-        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
+        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10AdversarialImageSet",
         map_location: Any = DEFAULT_DEVICE,
         num_workers: int = 0,
     ) -> None:
         raw_trainset = underlying(
             root,
             train=True,
+            transform=transforms.ToTensor(),
             map_location=map_location,
         )
         raw_testset = underlying(
             root,
             train=False,
+            transform=transforms.ToTensor(),
             map_location=map_location,
         )
         self._trainloader = DataLoader(
@@ -308,7 +320,7 @@ class CifarFgsmAdversarialDataset(_CifarTemplateAdversarialDataset):
     def __init__(
         self,
         batch_size: int,
-        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
+        root: os.PathLike = DATASET_DIRECTORY / "CIFAR10AdversarialImageSet",
         map_location: Any = DEFAULT_DEVICE,
         num_workers: int = 0,
     ) -> None:
@@ -325,7 +337,7 @@ class CifarPgdAdversarialDataset(_CifarTemplateAdversarialDataset):
     def __init__(
         self,
         batch_size: int,
-        root: PathLike = DATASET_DIRECTORY / "CIFAR10Adversarial",
+        root: PathLike = DATASET_DIRECTORY / "CIFAR10AdversarialImageSet",
         map_location: Any = DEFAULT_DEVICE,
         num_workers: int = 0,
     ) -> None:
@@ -374,3 +386,47 @@ class CifarAdversarialBatchDataset(AbstractDataset):
     @property
     def batch(self) -> Tuple[torch.Tensor, torch.Tensor]:
         return next(iter(self._dataloader))
+
+
+class CifarHybridDataSource(Dataset):
+    IMAGES_PER_SEGMENT = 60000
+    TRAIN_SEGMENTS = 15
+    TEST_SEGMENTS = 3
+    SCALAR_ONE = torch.scalar_tensor(1.0)
+
+    def __init__(
+        self,
+        root: os.PathLike = str(DATASET_DIRECTORY / "CIFAR10Hybrid"),
+        train: bool = True,
+        transform: Optional[Callable] = None,
+        map_location: Any = DEFAULT_DEVICE,
+    ) -> None:
+        if not isinstance(root, pathlib.Path):
+            root = pathlib.Path(root)
+        assert root.exists()
+        self.train = train
+        self.transform = transform
+        self.map_location = map_location
+        self.root = pathlib.Path(root)
+        self.current_segment = None
+        self.segment = None
+
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        segment_index = index // self.__class__.IMAGES_PER_SEGMENT
+        example_index = index % self.__class__.IMAGES_PER_SEGMENT
+        if self.current_segment != segment_index:
+            self.current_segment = segment_index
+            prefix = "trainset" if self.train else "testset"
+            with open(
+                self.root / f"{prefix}_{self.current_segment}.segment", "rb"
+            ) as file:
+                self.segment = pickle.load(file)
+        x = self.segment[example_index][0]
+        if self.transform is not None:
+            return self.transform(x), self.__class__.SCALAR_ONE
+        return x, self.__class__.SCALAR_ONE
+
+    def __len__(self) -> int:
+        if self.train:
+            return self.__class__.TRAIN_SEGMENTS * self.__class__.IMAGES_PER_SEGMENT
+        return self.__class__.TEST_SEGMENTS * self.__class__.IMAGES_PER_SEGMENT

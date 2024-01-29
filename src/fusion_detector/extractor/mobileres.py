@@ -10,6 +10,8 @@ from .abstract import AbstractFeatureExtractor, layer_of
 
 __all__ = ["ResNetKind", "MobileResExtractor"]
 
+DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 class ResNetKind(Enum):
     RESNET_18 = (M.resnet18, "avgpool")  # [-1, 512, 1, 1]
@@ -23,9 +25,13 @@ class MobileResExtractor(AbstractFeatureExtractor):
 
     def __init__(self, resnet_kind: ResNetKind) -> None:
         constructor, pattern = resnet_kind.value
-        self.resnet = constructor(pretrained=True)
+        self.resnet = constructor(pretrained=True, device=DEFAULT_DEVICE).to(
+            DEFAULT_DEVICE
+        )
         self.resnet_layer = layer_of(self.resnet, pattern)
-        self.mobilenet = M.mobilenet_v2(pretrained=True)
+        self.mobilenet = M.mobilenet_v2(pretrained=True, device=DEFAULT_DEVICE).to(
+            DEFAULT_DEVICE
+        )
         self.mobilenet_layer = layer_of(
             self.mobilenet,
             MobileResExtractor.MOBILENET_V2_LAYER,

@@ -1,4 +1,4 @@
 import pathlib
 
-SCRIPT_DIRECTORY = pathlib.PurePath(__file__).parent
+SCRIPT_DIRECTORY = pathlib.Path(__file__).parent
 PROJECT_DIRECTORY = SCRIPT_DIRECTORY.parent

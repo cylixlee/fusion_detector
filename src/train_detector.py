@@ -7,9 +7,9 @@ import torch
 import torch.nn.functional as F
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
-from torch import optim
+from torch import nn, optim
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import Dataset
+from torch.utils.data.dataset import ConcatDataset, Dataset
 from torchvision import datasets, transforms
 
 from fusion_detector import dataset
@@ -57,35 +57,8 @@ class MobileResLinearAdversarialDetector(lightning.LightningModule):
         self.accuracy.push(correct, total)
 
 
-class CompoundCifarDataSource(Dataset):
-    def __init__(self, train: bool = True) -> None:
-        super().__init__()
-        self.fgsm = dataset.CifarFgsmAdversarialDataSource(train=train)
-        self.pgd = dataset.CifarPgdAdversarialDataSource(train=train)
-        self.normal = datasets.CIFAR10(
-            str(PROJECT_PATH / "data" / "datasets" / "CIFAR10"),
-            train=train,
-            transform=transforms.ToTensor(),
-            target_transform=lambda _: torch.scalar_tensor(0.0),
-            download=True,
-        )
-        self.fgsmlen = len(self.fgsm)
-        self.pgdlen = len(self.pgd)
-        self.normallen = len(self.normal)
-
-    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        if index < self.fgsmlen:
-            return self.fgsm.__getitem__(index)
-        elif index < self.fgsmlen + self.pgdlen:
-            return self.pgd.__getitem__(index - self.fgsmlen)
-        return self.normal.__getitem__(index - self.fgsmlen - self.pgdlen)
-
-    def __len__(self) -> int:
-        return self.fgsmlen + self.pgdlen + self.normallen
-
-
 BATCH_SIZE = 32
-NUM_WORKERS = 0
+NUM_WORKERS = 2
 
 
 def main():
@@ -96,30 +69,35 @@ def main():
         enable_checkpointing=False,
     )
 
-    train_datasource = CompoundCifarDataSource()
-    test_datasource = CompoundCifarDataSource(train=False)
+    test_data = dataset.CifarHybridDataSource(
+        train=False, transform=transforms.ToTensor()
+    )
+    train_data = dataset.CifarHybridDataSource(
+        train=True, transform=transforms.ToTensor()
+    )
+
     trainloader = DataLoader(
-        train_datasource,
-        shuffle=True,
+        train_data,
         batch_size=BATCH_SIZE,
         num_workers=NUM_WORKERS,
         persistent_workers=NUM_WORKERS > 0,
     )
+
     testloader = DataLoader(
-        test_datasource,
+        test_data,
         batch_size=BATCH_SIZE,
         num_workers=NUM_WORKERS,
         persistent_workers=NUM_WORKERS > 0,
     )
 
-    # trainer.fit(detector, trainloader)
-    trainer.test(detector, testloader)
-    print(f"Tested with {detector.accuracy.push()} accuracy.")
-
+    trainer.fit(detector, trainloader)
     savepath = PROJECT_PATH / "data" / "modules" / "CIFAR10Adversarial"
     if not savepath.exists():
         savepath.mkdir(parents=True)
     trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
+
+    trainer.test(detector, testloader)
+    print(f"Tested with {detector.accuracy.push()} accuracy.")
 
 
 # Guideline recommended Main Guard
