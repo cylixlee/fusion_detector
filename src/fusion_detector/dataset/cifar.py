@@ -178,7 +178,6 @@ class NormalizedCifarBatchDataset(AbstractDataset):
 class _CifarSingleAdversarialAttackDataSource(Dataset):
     IMAGES_PER_SEGMENT = 10000
     TRAIN_SEGMENTS = 5
-    SCALAR_ONE = torch.scalar_tensor(1.0)
 
     def __init__(
         self,
@@ -216,9 +215,9 @@ class _CifarSingleAdversarialAttackDataSource(Dataset):
             x = self.segment[example_index][0]
             if self.transform is not None:
                 # return self.transform(x), label
-                return self.transform(x), self.__class__.SCALAR_ONE
+                return self.transform(x), 1.0
             # return x, label
-            return x, self.__class__.SCALAR_ONE
+            return x, 1.0
         victim_index = segment_index // self.__class__.TRAIN_SEGMENTS
         segment_index = segment_index % self.__class__.TRAIN_SEGMENTS
         if self.current_victim != self.victims[victim_index]:
@@ -234,8 +233,8 @@ class _CifarSingleAdversarialAttackDataSource(Dataset):
         # x, label = self.segment[example_index][0], self.segment[example_index][1]
         x = self.segment[segment_index][example_index][0]
         if self.transform is not None:
-            return self.transform(x), self.__class__.SCALAR_ONE
-        return x, self.__class__.SCALAR_ONE
+            return self.transform(x), 1.0
+        return x, 1.0
 
     def __len__(self) -> int:
         if self.train:
@@ -421,10 +420,10 @@ class CifarHybridDataSource(Dataset):
                 self.root / f"{prefix}_{self.current_segment}.segment", "rb"
             ) as file:
                 self.segment = pickle.load(file)
-        x = self.segment[example_index][0]
+        x, label = self.segment[example_index]
         if self.transform is not None:
-            return self.transform(x), self.__class__.SCALAR_ONE
-        return x, self.__class__.SCALAR_ONE
+            return self.transform(x), label
+        return x, label
 
     def __len__(self) -> int:
         if self.train:

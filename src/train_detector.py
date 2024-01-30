@@ -23,7 +23,7 @@ LOGGER_PATH = PROJECT_PATH / "log"
 
 
 class MobileResLinearAdversarialDetector(lightning.LightningModule):
-    def __init__(self, learning_rate: float) -> None:
+    def __init__(self, learning_rate: float = 0.01) -> None:
         super().__init__()
         self.learning_rate = learning_rate
         self.extractor = MobileResExtractor(ResNetKind.RESNET_50)
@@ -54,6 +54,9 @@ class MobileResLinearAdversarialDetector(lightning.LightningModule):
         # Collect statistics
         correct = torch.eq(predict, label).sum().item()
         total = len(label)
+        self.log(
+            "test accuracy", correct / total, prog_bar=True, on_epoch=True, on_step=True
+        )
         self.accuracy.push(correct, total)
 
 
@@ -62,9 +65,16 @@ NUM_WORKERS = 2
 
 
 def main():
-    detector = MobileResLinearAdversarialDetector(0.01)
+    savepath = PROJECT_PATH / "data" / "modules" / "CIFAR10Adversarial"
+    if not savepath.exists():
+        savepath.mkdir(parents=True)
+
+    detector = MobileResLinearAdversarialDetector.load_from_checkpoint(
+        savepath / "MobileResLinear.ckpt"
+    )
+
     trainer = lightning.Trainer(
-        max_epochs=100,
+        # max_epochs=100,
         logger=TensorBoardLogger(LOGGER_PATH),
         enable_checkpointing=False,
     )
@@ -72,16 +82,17 @@ def main():
     test_data = dataset.CifarHybridDataSource(
         train=False, transform=transforms.ToTensor()
     )
-    train_data = dataset.CifarHybridDataSource(
-        train=True, transform=transforms.ToTensor()
-    )
 
-    trainloader = DataLoader(
-        train_data,
-        batch_size=BATCH_SIZE,
-        num_workers=NUM_WORKERS,
-        persistent_workers=NUM_WORKERS > 0,
-    )
+    # train_data = dataset.CifarHybridDataSource(
+    #     train=True, transform=transforms.ToTensor()
+    # )
+
+    # trainloader = DataLoader(
+    #     train_data,
+    #     batch_size=BATCH_SIZE,
+    #     num_workers=NUM_WORKERS,
+    #     persistent_workers=NUM_WORKERS > 0,
+    # )
 
     testloader = DataLoader(
         test_data,
@@ -90,14 +101,9 @@ def main():
         persistent_workers=NUM_WORKERS > 0,
     )
 
-    trainer.fit(detector, trainloader)
-    savepath = PROJECT_PATH / "data" / "modules" / "CIFAR10Adversarial"
-    if not savepath.exists():
-        savepath.mkdir(parents=True)
-    trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
-
+    # trainer.fit(detector, trainloader)
+    # trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
     trainer.test(detector, testloader)
-    print(f"Tested with {detector.accuracy.push()} accuracy.")
 
 
 # Guideline recommended Main Guard

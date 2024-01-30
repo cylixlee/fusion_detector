@@ -33,8 +33,6 @@ VICTIMS = [
 
 
 class NonAdversarialCifarDataset(Dataset):
-    SCALAR_ZERO = torch.scalar_tensor(0.0)
-
     def __init__(self, train: bool = True) -> None:
         self.underlying = datasets.CIFAR10(
             str(PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10"),
@@ -42,9 +40,9 @@ class NonAdversarialCifarDataset(Dataset):
             train=train,
         )
 
-    def __getitem__(self, index) -> Tuple[torch.Tensor, int]:
+    def __getitem__(self, index):
         x, _ = self.underlying[index % len(self.underlying)]
-        return x, self.__class__.SCALAR_ZERO
+        return x, 0.0
 
     def __len__(self) -> int:
         return 6 * len(self.underlying)

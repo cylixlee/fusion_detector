@@ -18,5 +18,5 @@ class LinearAdversarialClassifier(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, self.feature_channels)
-        binary_onehot = self.fc(x)
-        return binary_onehot
+        binary = self.fc(x)
+        return binary
