@@ -14,7 +14,6 @@ __all__ = [
     "AvailableNorm",
     "fgsm",
     "pgd",
-    "sparsel1",
 ]
 
 TensorTransformAction = Callable[..., torch.Tensor]

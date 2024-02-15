@@ -2,16 +2,14 @@ from abc import ABC, abstractmethod
 
 from torch.utils.data.dataloader import DataLoader
 
-__all__ = ["AbstractDataset"]
+__all__ = ["AbstractDataSource"]
 
 
-class AbstractDataset(ABC):
+class AbstractDataSource(ABC):
     @property
     @abstractmethod
-    def trainset(self) -> DataLoader:
-        ...
+    def trainset(self) -> DataLoader: ...
 
     @property
     @abstractmethod
-    def testset(self) -> DataLoader:
-        ...
+    def testset(self) -> DataLoader: ...

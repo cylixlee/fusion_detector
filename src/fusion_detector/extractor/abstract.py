@@ -1,29 +1,30 @@
 from abc import ABC, abstractmethod
+from typing import *
 
 import torch
 from torch import nn
 
-__all__ = ["layer_of", "AbstractFeatureExtractor"]
+from ..misc.hook import LayerOutputCollectedModuleWrapper
 
-
-def layer_of(module: nn.Module, pattern: str) -> nn.Module:
-    parts = pattern.split(".")
-    for part in parts:
-        if part.isdigit():
-            module = module[int(part)]
-        else:
-            module = getattr(module, part)
-    return module
+__all__ = [
+    "AbstractFeatureExtractor",
+    "IntermediateLayerFeatureExtractor",
+]
 
 
 class AbstractFeatureExtractor(ABC):
-    def __init__(self, *modules: nn.Module) -> None:
-        for module in modules:
-            module.requires_grad_(False)
-
     @abstractmethod
-    def extract(self, x: torch.Tensor) -> torch.Tensor:
-        ...
+    def extract(self, x: torch.Tensor) -> torch.Tensor: ...
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         return self.extract(x)
+
+
+class IntermediateLayerFeatureExtractor(AbstractFeatureExtractor):
+    def __init__(self, module: nn.Module, layer_pattern: str) -> None:
+        self.module_wrapper = LayerOutputCollectedModuleWrapper(module, layer_pattern)
+        self.module_wrapper.underlying.requires_grad_(False)
+
+    def extract(self, x: torch.Tensor) -> torch.Tensor:
+        self.module_wrapper(x)
+        return self.module_wrapper.intermediate

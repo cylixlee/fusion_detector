@@ -4,9 +4,8 @@ from typing import *
 import torch
 from torch import nn
 
-from .. import misc
 from ..thirdparty.pytorch_cifar10 import module as M
-from .abstract import AbstractFeatureExtractor, layer_of
+from .abstract import AbstractFeatureExtractor, IntermediateLayerFeatureExtractor
 
 __all__ = ["ResNetKind", "MobileResExtractor"]
 
@@ -25,36 +24,24 @@ class MobileResExtractor(AbstractFeatureExtractor):
 
     def __init__(self, resnet_kind: ResNetKind) -> None:
         constructor, pattern = resnet_kind.value
-        self.resnet = constructor(pretrained=True, device=DEFAULT_DEVICE).to(
-            DEFAULT_DEVICE
+        self.resnet = IntermediateLayerFeatureExtractor(
+            constructor(pretrained=True, device=DEFAULT_DEVICE),
+            pattern,
         )
-        self.resnet_layer = layer_of(self.resnet, pattern)
-        self.mobilenet = M.mobilenet_v2(pretrained=True, device=DEFAULT_DEVICE).to(
-            DEFAULT_DEVICE
-        )
-        self.mobilenet_layer = layer_of(
-            self.mobilenet,
+        self.mobilenet = IntermediateLayerFeatureExtractor(
+            M.mobilenet_v2(pretrained=True, device=DEFAULT_DEVICE),
             MobileResExtractor.MOBILENET_V2_LAYER,
         )
         self.average_pool = nn.AdaptiveAvgPool2d((1, 1))
-        # Freeze the model so that its parameters won't be updated.
-        super().__init__(self.resnet, self.mobilenet)
 
     def extract(self, x: torch.Tensor) -> torch.Tensor:
         # [-1, 2048, 1, 1]
-        resnet_features: torch.Tensor
-        with misc.LayerOutputValueCollector(self.resnet_layer) as resnet_collector:
-            self.resnet(x)
-            resnet_features = resnet_collector.value
+        resnet_features = self.resnet(x)
 
         # [-1, 1280, 28, 28] if ResNet50
-        mobilenet_features: torch.Tensor
-        with misc.LayerOutputValueCollector(
-            self.mobilenet_layer
-        ) as mobilenet_collector:
-            self.mobilenet(x)
-            mobilenet_features = mobilenet_collector.value
+        mobilenet_features = self.mobilenet(x)
         # [-1, 1280, 1, 1]
         mobilenet_features = self.average_pool(mobilenet_features)
+
         # [-1, 2048+1280, 1, 1] if ResNet50
         return torch.cat((resnet_features, mobilenet_features), dim=1)
