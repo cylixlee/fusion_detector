@@ -7,15 +7,10 @@ import torch
 import torch.nn.functional as F
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
-from torch import nn, optim
-from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import ConcatDataset, Dataset
-from torchvision import datasets, transforms
+from torch import optim
 
-from fusion_detector import dataset
 from fusion_detector.classifier import LinearAdversarialClassifier
 from fusion_detector.extractor import MobileResExtractor, ResNetKind
-from fusion_detector.misc import AccuracyRecorder
 
 SCRIPT_PATH = pathlib.Path(__file__).parent
 PROJECT_PATH = SCRIPT_PATH.parent
@@ -28,7 +23,6 @@ class MobileResLinearAdversarialDetector(lightning.LightningModule):
         self.learning_rate = learning_rate
         self.extractor = MobileResExtractor(ResNetKind.RESNET_50)
         self.classifier = LinearAdversarialClassifier(2048 + 1280)
-        self.accuracy = AccuracyRecorder()
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         return optim.SGD(self.classifier.parameters(), self.learning_rate)
@@ -57,7 +51,6 @@ class MobileResLinearAdversarialDetector(lightning.LightningModule):
         self.log(
             "test accuracy", correct / total, prog_bar=True, on_epoch=True, on_step=True
         )
-        self.accuracy.push(correct, total)
 
 
 BATCH_SIZE = 32
@@ -79,9 +72,9 @@ def main():
         enable_checkpointing=False,
     )
 
-    test_data = dataset.CifarHybridDataSource(
-        train=False, transform=transforms.ToTensor()
-    )
+    # test_data = dataset.CifarHybridDataSource(
+    #     train=False, transform=transforms.ToTensor()
+    # )
 
     # train_data = dataset.CifarHybridDataSource(
     #     train=True, transform=transforms.ToTensor()
@@ -94,16 +87,16 @@ def main():
     #     persistent_workers=NUM_WORKERS > 0,
     # )
 
-    testloader = DataLoader(
-        test_data,
-        batch_size=BATCH_SIZE,
-        num_workers=NUM_WORKERS,
-        persistent_workers=NUM_WORKERS > 0,
-    )
+    # testloader = DataLoader(
+    #     test_data,
+    #     batch_size=BATCH_SIZE,
+    #     num_workers=NUM_WORKERS,
+    #     persistent_workers=NUM_WORKERS > 0,
+    # )
 
     # trainer.fit(detector, trainloader)
     # trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
-    trainer.test(detector, testloader)
+    # trainer.test(detector, testloader)
 
 
 # Guideline recommended Main Guard

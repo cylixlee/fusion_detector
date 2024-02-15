@@ -3,8 +3,6 @@ from typing import *
 import torch
 from torch import nn
 
-from . import console
-
 __all__ = ["LayerOutputValueCollector", "LayerOutputValuesCollector"]
 
 
@@ -65,8 +63,6 @@ class LayerOutputValueCollector(object):
 
         Exception-related arguments are ignored.
         """
-        if exception_value is not None:
-            console.error(str(exception_value))
         self._registered_hook.remove()
 
 
@@ -132,6 +128,4 @@ class LayerOutputValuesCollector(object):
 
         Exception-related arguments are ignored.
         """
-        if exception_value is not None:
-            console.error(str(exception_value))
         self._registered_hook.remove()

@@ -7,7 +7,6 @@ from cleverhans.torch.attacks.fast_gradient_method import fast_gradient_method
 from cleverhans.torch.attacks.projected_gradient_descent import (
     projected_gradient_descent,
 )
-from cleverhans.torch.attacks.sparse_l1_descent import sparse_l1_descent
 from torch import nn
 
 __all__ = [
@@ -31,8 +30,8 @@ def fgsm(
     module: nn.Module,
     epsilon: float = 0.1,
     norm: AvailableNorm = AvailableNorm.INFINITY,
-    clip_min: float = 0,
-    clip_max: float = 1,
+    clip_min: Optional[float] = None,
+    clip_max: Optional[float] = None,
 ) -> TensorTransformAction:
     def _wrapper(x: torch.Tensor) -> torch.Tensor:
         return fast_gradient_method(
@@ -54,8 +53,8 @@ def pgd(
     step_epsilon: float = 0.05,
     iterations: int = 10,
     norm: AvailableNorm = AvailableNorm.INFINITY,
-    clip_min: float = 0,
-    clip_max: float = 1,
+    clip_min: Optional[float] = None,
+    clip_max: Optional[float] = None,
 ) -> TensorTransformAction:
     def _wrapper(x: torch.Tensor) -> torch.Tensor:
         return projected_gradient_descent(

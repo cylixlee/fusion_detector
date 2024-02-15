@@ -47,7 +47,7 @@ As I mentioned before, there's some obvious imperfection and that's very clear i
   1. The **logic** of this script can be changed *thoroughly*. Taking from existing adversarial dataset makes little sense. We shall use this script to generate one mini-batch and test attack rate on it, and generate the whole dataset if the result is promising.
   2. Existing **dependency** on encapsulated dataset should be removed. Considering create a module in `src` which offers a universal hyperparameter setting for consistency between this script and that whole-dataset generating one.
 
-#### **Speial**: Adversarial Dataset Generating
+#### **Special**: Adversarial Dataset Generating
 
 This is the most special part, and needs thorough change.
 

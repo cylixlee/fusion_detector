@@ -1,34 +1,67 @@
 # Generate module metadata to inspect the structure and parameters.
 
+import os
+import pathlib
 import sys
+from typing import *
 
+import inclconf
 import torchsummary
-from tools_common import PROJECT_DIRECTORY
+from tqdm import tqdm
 
-# Add project source directory into sys.path, to import modules without messing up
-# with source files.
-project_path = str(PROJECT_DIRECTORY)
-if project_path not in sys.path:
-    sys.path.insert(0, project_path)
+inclconf.configure_includepath()
 
 import src.fusion_detector.thirdparty.pytorch_cifar10.module as M
-from src.fusion_detector import misc
 
-SUMMARY_DIRECTORY = PROJECT_DIRECTORY / "metadata" / "summary"
-STRUCTURE_DIRECTORY = PROJECT_DIRECTORY / "metadata" / "structure"
+SUMMARY_DIRECTORY = inclconf.PROJECT_DIRECTORY / "metadata" / "summary"
+STRUCTURE_DIRECTORY = inclconf.PROJECT_DIRECTORY / "metadata" / "structure"
 FILE_SUFFIX = ".txt"
 
 
+class PossibleRedirectStream(object):
+    def __init__(
+        self,
+        filename: Optional[os.PathLike],
+    ) -> None:
+        self.path: Optional[pathlib.Path] = None
+        if filename is None:
+            return
+        self.path = pathlib.Path(filename).with_suffix(FILE_SUFFIX)
+
+    def __enter__(self) -> None:
+        if self.path is None:
+            return
+        # Save the original stream.
+        self.standard_output = sys.stdout
+        # Create parent directory if any.
+        parent_directory = self.path.parent
+        if not parent_directory.exists():
+            parent_directory.mkdir(parents=True)
+        self.file = self.path.open("w")
+        # Redirect stream to the file.
+        sys.stdout = self.file
+
+    def __exit__(self, *args: Any) -> None:
+        if self.path is None:
+            return
+        # Close file.
+        self.file.close()
+        # Restore system stream.
+        sys.stdout = self.standard_output
+
+
 def main():
-    for name, module in M.all_classifiers.items():
+    for name, module in tqdm(
+        M.all_classifiers.items(), desc="Generate Metadata", leave=False
+    ):
         summary_path = (SUMMARY_DIRECTORY / name).with_suffix(FILE_SUFFIX)
-        with misc.PossibleRedirectStream(summary_path):
+        with PossibleRedirectStream(summary_path):
             torchsummary.summary(module, input_size=(3, 224, 224))
         structure_path = (STRUCTURE_DIRECTORY / name).with_suffix(FILE_SUFFIX)
-        with misc.PossibleRedirectStream(structure_path):
+        with PossibleRedirectStream(structure_path):
             print(module)
 
 
-# Main guard
+# Guideline Recommended Main Guard
 if __name__ == "__main__":
     main()
