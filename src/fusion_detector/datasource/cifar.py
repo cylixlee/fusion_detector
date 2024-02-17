@@ -2,6 +2,7 @@ import pathlib
 import pickle
 from typing import *
 
+import torch
 from PIL.Image import Image
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import Dataset
@@ -19,6 +20,8 @@ INNER_PROJECT_DIRECTORY = SCRIPT_DIRECTORY.parent
 SOURCE_DIRECTORY = INNER_PROJECT_DIRECTORY.parent
 PROJECT_DIRECTORY = SOURCE_DIRECTORY.parent
 DATASET_DIRECTORY = PROJECT_DIRECTORY / "data" / "datasets"
+MEAN = (0.4914, 0.4822, 0.4465)
+STD = (0.2471, 0.2435, 0.2616)
 
 
 class CifarDataSource(AbstractDataSource):
@@ -28,15 +31,13 @@ class CifarDataSource(AbstractDataSource):
         root: pathlib.Path = DATASET_DIRECTORY / "CIFAR10",
         num_workers: int = 0,
     ) -> None:
-        mean = (0.4914, 0.4822, 0.4465)
-        std = (0.2471, 0.2435, 0.2616)
         raw_trainset = datasets.CIFAR10(
             str(root),
             train=True,
             transform=transforms.Compose(
                 [
                     transforms.ToTensor(),
-                    transforms.Normalize(mean, std),
+                    transforms.Normalize(MEAN, STD),
                 ]
             ),
             download=True,
@@ -47,7 +48,7 @@ class CifarDataSource(AbstractDataSource):
             transform=transforms.Compose(
                 [
                     transforms.ToTensor(),
-                    transforms.Normalize(mean, std),
+                    transforms.Normalize(MEAN, STD),
                 ]
             ),
             download=True,
@@ -98,7 +99,14 @@ class _CifarBatchDataset(Dataset):
 class CifarBatchDataSource(AbstractDataSource):
     def __init__(self, batch_size: int) -> None:
         self.batchsize = batch_size
-        self._dataset = _CifarBatchDataset(transform=transforms.ToTensor())
+        self._dataset = _CifarBatchDataset(
+            transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize(MEAN, STD),
+                ]
+            )
+        )
         self._dataloader = DataLoader(self._dataset, batch_size)
         self._iter = iter(self._dataloader)
 
@@ -110,5 +118,5 @@ class CifarBatchDataSource(AbstractDataSource):
     def testset(self) -> DataLoader:
         return self._dataloader
 
-    def batch(self) -> List[Tuple[Image, int]]:
+    def batch(self) -> List[torch.Tensor]:
         return next(self._iter)
