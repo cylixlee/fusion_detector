@@ -1,5 +1,0 @@
-,vgg19,resnet50,densenet121,mobilenet_v2,googlenet,inception_v3
-rfgsm (alpha=4/255),0.21875,0.125,0.09375,0.09375,0.125,0.09375
-apgd (steps=20),0.1875,0.125,0.09375,0.09375,0.09375,0.09375
-cw (lr=0.02),0.21875,0.0625,0.15625,0.03125,0.0,0.03125
-pixle (pixel_mapping=distance_random),0.03125,0.03125,0.125,0.0625,0.03125,0.0

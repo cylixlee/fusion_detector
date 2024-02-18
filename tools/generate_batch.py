@@ -13,8 +13,6 @@ from src.fusion_detector import datasource, misc
 
 BATCHSIZE = 32
 SAVEPATH = PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10Batch"
-MEAN = (0.4914, 0.4822, 0.4465)
-STD = (0.2471, 0.2435, 0.2616)
 
 
 # Guideline Recommended Main Guard
@@ -26,7 +24,9 @@ def main():
         batch = next(iter(source.testset))
         del source  # Release memory ASAP
 
-        batch[0] = misc.denormalize(batch[0], MEAN, STD)
+        batch[0] = misc.denormalize(
+            batch[0], datasource.CIFAR_MEAN, datasource.CIFAR_STD
+        )
         pairs: List[Tuple[Image, int]] = []
         for index in range(BATCHSIZE):
             x: torch.Tensor = batch[0][index]

@@ -18,7 +18,7 @@ STRUCTURE_DIRECTORY = inclconf.PROJECT_DIRECTORY / "metadata" / "structure"
 FILE_SUFFIX = ".txt"
 
 
-class PossibleRedirectStream(object):
+class PossibleRedirectStream(ContextManager):
     def __init__(
         self,
         filename: Optional[os.PathLike],

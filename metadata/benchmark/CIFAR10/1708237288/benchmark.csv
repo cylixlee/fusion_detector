@@ -1,0 +1,5 @@
+,vgg19,resnet50,densenet121,mobilenet_v2,googlenet,inception_v3
+rfgsm default,0.375,0.0,0.0,0.0,0.0,0.15625
+apgd default,0.25,0.0,0.0,0.0,0.0,0.125
+cw default,0.375,0.0625,0.03125,0.03125,0.0,0.125
+pixle default,0.0625,0.0625,0.15625,0.03125,0.0,0.03125

@@ -7,6 +7,7 @@ import torch
 import torchattacks
 from inclconf import PROJECT_DIRECTORY
 from torch import nn
+from torchattacks.attack import Attack
 from tqdm import tqdm
 
 inclconf.configure_includepath()
@@ -28,34 +29,26 @@ class BenchmarkReportCard(object):
         return pd.DataFrame(self.bidimensional)
 
 
-AttackCallable = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-AnyAttackConstructor = Callable[..., AttackCallable]
-CanonicalAttackConstructor = Callable[[nn.Module], AttackCallable]
+AnyAttackConstructor = Callable[..., Attack]
+CanonicalAttackConstructor = Callable[[nn.Module], Attack]
 
 
 def canonicalized(
     attack_constructor: AnyAttackConstructor, *args, **kwargs
 ) -> CanonicalAttackConstructor:
-    def _wrapper(module: nn.Module) -> AttackCallable:
-        return attack_constructor(module, *args, **kwargs)
+    def _wrapper(module: nn.Module) -> Attack:
+        attack = attack_constructor(module, *args, **kwargs)
+        attack.set_normalization_used(datasource.CIFAR_MEAN, datasource.CIFAR_STD)
+        return attack
 
     return _wrapper
 
 
 ATTACKS: Dict[str, CanonicalAttackConstructor] = {
-    "vmifgsm default": torchattacks.VMIFGSM,
-    "vnifgsm default": torchattacks.VNIFGSM,
-    "apgd (n_restarts=5, steps=20, eot_iter=5)": canonicalized(
-        torchattacks.APGD,
-        n_restarts=5,
-        steps=20,
-        eot_iter=5,
-    ),
-    "cw (lr=0.05)": canonicalized(torchattacks.CW, lr=0.05),
-    # "pixle (pixel_mapping=similarity_random)": canonicalized(
-    #     torchattacks.Pixle,
-    #     pixel_mapping="similarity_random",
-    # ),
+    "rfgsm default": canonicalized(torchattacks.RFGSM),
+    "apgd default": canonicalized(torchattacks.APGD),
+    "cw default": canonicalized(torchattacks.CW),
+    "pixle default": canonicalized(torchattacks.Pixle),
 }
 DEFAULT_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 MODELS: Dict[str, nn.Module] = {

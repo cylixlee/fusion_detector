@@ -11,6 +11,8 @@ from torchvision import datasets, transforms
 from .abstract import AbstractDataSource
 
 __all__ = [
+    "CIFAR_MEAN",
+    "CIFAR_STD",
     "CifarDataSource",
     "CifarBatchDataSource",
 ]
@@ -20,8 +22,9 @@ INNER_PROJECT_DIRECTORY = SCRIPT_DIRECTORY.parent
 SOURCE_DIRECTORY = INNER_PROJECT_DIRECTORY.parent
 PROJECT_DIRECTORY = SOURCE_DIRECTORY.parent
 DATASET_DIRECTORY = PROJECT_DIRECTORY / "data" / "datasets"
-MEAN = (0.4914, 0.4822, 0.4465)
-STD = (0.2471, 0.2435, 0.2616)
+
+CIFAR_MEAN = (0.4914, 0.4822, 0.4465)
+CIFAR_STD = (0.2471, 0.2435, 0.2616)
 
 
 class CifarDataSource(AbstractDataSource):
@@ -37,7 +40,7 @@ class CifarDataSource(AbstractDataSource):
             transform=transforms.Compose(
                 [
                     transforms.ToTensor(),
-                    transforms.Normalize(MEAN, STD),
+                    transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
                 ]
             ),
             download=True,
@@ -48,7 +51,7 @@ class CifarDataSource(AbstractDataSource):
             transform=transforms.Compose(
                 [
                     transforms.ToTensor(),
-                    transforms.Normalize(MEAN, STD),
+                    transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
                 ]
             ),
             download=True,
@@ -103,7 +106,7 @@ class CifarBatchDataSource(AbstractDataSource):
             transform=transforms.Compose(
                 [
                     transforms.ToTensor(),
-                    transforms.Normalize(MEAN, STD),
+                    transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
                 ]
             )
         )
