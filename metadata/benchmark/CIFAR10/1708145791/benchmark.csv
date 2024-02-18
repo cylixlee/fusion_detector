@@ -1,4 +1,0 @@
-,vgg19,resnet50,densenet121,mobilenet_v2,googlenet,inception_v3
-mifgsm default,0.25,0.15625,0.15625,0.09375,0.125,0.1875
-jitter default,0.34375,0.4375,0.3125,0.28125,0.15625,0.25
-tpgd default,0.28125,0.21875,0.21875,0.125,0.1875,0.25

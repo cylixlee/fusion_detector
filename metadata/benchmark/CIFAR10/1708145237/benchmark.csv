@@ -1,2 +1,0 @@
-,vgg19,resnet50,densenet121,mobilenet_v2,googlenet,inception_v3
-pixle default,0.0625,0.0625,0.125,0.0625,0.0,0.0

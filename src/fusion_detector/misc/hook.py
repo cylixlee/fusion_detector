@@ -1,7 +1,6 @@
 from typing import *
 
 import torch
-from deprecated import deprecated
 from torch import nn
 
 __all__ = [

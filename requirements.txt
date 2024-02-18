@@ -19,11 +19,6 @@ torchmetrics
 # P.S. I don't know if this package is from torch official.
 torchsummary~=1.5.1
 
-# [Deprecated] Adversarial examples' codebase.
-# Used for generating adversarials, by applying adversarial attacks on
-#     normal images.
-# cleverhans~=4.0.0
-
 # Adversarial attack implementations for PyTorch
 torchattacks~=3.5.1
 

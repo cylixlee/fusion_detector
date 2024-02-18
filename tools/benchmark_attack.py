@@ -43,8 +43,19 @@ def canonicalized(
 
 
 ATTACKS: Dict[str, CanonicalAttackConstructor] = {
-    "rfgsm default": torchattacks.RFGSM,
-    "spsa default": torchattacks.SPSA,
+    "vmifgsm default": torchattacks.VMIFGSM,
+    "vnifgsm default": torchattacks.VNIFGSM,
+    "apgd (n_restarts=5, steps=20, eot_iter=5)": canonicalized(
+        torchattacks.APGD,
+        n_restarts=5,
+        steps=20,
+        eot_iter=5,
+    ),
+    "cw (lr=0.05)": canonicalized(torchattacks.CW, lr=0.05),
+    # "pixle (pixel_mapping=similarity_random)": canonicalized(
+    #     torchattacks.Pixle,
+    #     pixel_mapping="similarity_random",
+    # ),
 }
 DEFAULT_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 MODELS: Dict[str, nn.Module] = {
