@@ -8,11 +8,13 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import Dataset
 from torchvision import datasets, transforms
 
+from .. import misc
 from .abstract import AbstractDataSource
 
 __all__ = [
     "CIFAR_MEAN",
     "CIFAR_STD",
+    "denormalize_cifar",
     "CifarDataSource",
     "CifarBatchDataSource",
 ]
@@ -25,6 +27,10 @@ DATASET_DIRECTORY = PROJECT_DIRECTORY / "data" / "datasets"
 
 CIFAR_MEAN = (0.4914, 0.4822, 0.4465)
 CIFAR_STD = (0.2471, 0.2435, 0.2616)
+
+
+def denormalize_cifar(x: torch.Tensor) -> torch.Tensor:
+    return misc.denormalize(x, CIFAR_MEAN, CIFAR_STD)
 
 
 class CifarDataSource(AbstractDataSource):

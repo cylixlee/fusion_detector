@@ -24,9 +24,7 @@ def main():
         batch = next(iter(source.testset))
         del source  # Release memory ASAP
 
-        batch[0] = misc.denormalize(
-            batch[0], datasource.CIFAR_MEAN, datasource.CIFAR_STD
-        )
+        batch[0] = datasource.denormalize_cifar(batch[0])
         pairs: List[Tuple[Image, int]] = []
         for index in range(BATCHSIZE):
             x: torch.Tensor = batch[0][index]

@@ -72,8 +72,8 @@ def main():
                 adversarial = attack(x, label)
                 for index in range(adversarial.shape[0]):
                     adversarial_image = V.to_pil_image(
-                        misc.denormalize(
-                            adversarial[index].unsqueeze(0), MEAN, STD
+                        datasource.denormalize_cifar(
+                            adversarial[index].unsqueeze(0)
                         ).squeeze()
                     )
                     category = label[index].item()
@@ -89,8 +89,8 @@ def main():
                 adversarial = attack(x, label)
                 for index in range(adversarial.shape[0]):
                     adversarial_image = V.to_pil_image(
-                        misc.denormalize(
-                            adversarial[index].unsqueeze(0), MEAN, STD
+                        datasource.denormalize_cifar(
+                            adversarial[index].unsqueeze(0)
                         ).squeeze()
                     )
                     category = label[index].item()
@@ -102,7 +102,7 @@ def main():
 if __name__ == "__main__":
     main()
     # lst = misc.SegmentedSerializableList(
-    #     SAVE_DIRECTORY / "vanilla" / "resnet50", "test"
+    #     SAVE_DIRECTORY / "vanilla" / "resnet50", "train"
     # )
     # print(len(lst))
     # x, label = lst[0]
