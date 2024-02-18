@@ -61,6 +61,7 @@ def main():
         ATTACKS.items(), desc="Attack", leave=False
     ):
         for model_name, model in tqdm(MODELS.items(), desc="Model", leave=False):
+            model.to(DEFAULT_DEVICE).eval()
             attack = attack_constructor(model)
 
             # Save adversarial train set.
@@ -101,15 +102,3 @@ def main():
 # Guideline Recommended Main Guard
 if __name__ == "__main__":
     main()
-    # lst = misc.SegmentedSerializableList(
-    #     SAVE_DIRECTORY / "vanilla" / "resnet50", "train"
-    # )
-    # print(len(lst))
-    # x, label = lst[0]
-    # print(type(x), type(label))
-    # import matplotlib.pyplot as plt
-
-    # plt.title(f"category {label}")
-    # plt.axis("off")
-    # plt.imshow(x)
-    # plt.show()

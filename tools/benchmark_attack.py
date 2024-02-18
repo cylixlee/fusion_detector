@@ -72,7 +72,7 @@ def main():
         ATTACKS.items(), desc="Attack", leave=False
     ):
         for model_name, model in tqdm(MODELS.items(), desc="Model", leave=False):
-            model.eval()
+            model.to(DEFAULT_DEVICE).eval()
             attack = attack_constructor(model)
             adversarial = attack(x, label)
             y = model(adversarial)
