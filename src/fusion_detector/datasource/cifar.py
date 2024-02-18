@@ -5,7 +5,7 @@ from typing import *
 import torch
 from PIL.Image import Image
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import Dataset
+from torch.utils.data.dataset import ConcatDataset, Dataset
 from torchvision import datasets, transforms
 
 from .. import misc
@@ -17,6 +17,11 @@ __all__ = [
     "denormalize_cifar",
     "CifarDataSource",
     "CifarBatchDataSource",
+    "SegmentedAdversarialCifarDataset",
+    "ApgdAdversarialCifarDataSource",
+    "CWAdversarialCifarDataSource",
+    "RFgsmAdversarialCifarDataSource",
+    "AdversarialCifarDataSource",
 ]
 
 SCRIPT_DIRECTORY = pathlib.Path(__file__).parent
@@ -129,3 +134,179 @@ class CifarBatchDataSource(AbstractDataSource):
 
     def batch(self) -> List[torch.Tensor]:
         return next(self._iter)
+
+
+class SegmentedAdversarialCifarDataset(Dataset):
+    DIRECTORY = PROJECT_DIRECTORY / "data" / "datasets" / "CIFAR10Adversarial"
+
+    def __init__(
+        self,
+        attack: str,
+        victim: str,
+        train: bool = True,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ) -> None:
+        self.transform = transform
+        self.lst = misc.SegmentedSerializableList[Tuple[Image, int]](
+            self.__class__.DIRECTORY / attack / victim, "train" if train else "test"
+        )
+
+    def __getitem__(self, index) -> Tuple[Image, int]:
+        if self.transform is not None:
+            x, label = self.lst[index]
+            return self.transform(x), label
+        return self.lst[index]
+
+    def __len__(self) -> int:
+        return len(self.lst)
+
+
+class _SpecifiedAttackCifarDataset(ConcatDataset):
+    VICTIMS = ["densenet121", "googlenet", "mobilenet_v2", "resnet50"]
+
+    def __init__(
+        self,
+        attack: str,
+        train: bool = True,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ) -> None:
+        super().__init__(
+            (
+                SegmentedAdversarialCifarDataset(attack, victim, train, transform)
+                for victim in self.__class__.VICTIMS
+            )
+        )
+
+
+class _CommonDataSourceTemplate(AbstractDataSource):
+    def __init__(
+        self,
+        dataset_class: type,
+        batch_size: int,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        num_workers: int = 0,
+    ) -> None:
+        raw_trainset = dataset_class(train=True, transform=transform)
+        raw_testset = dataset_class(train=False, transform=transform)
+        self._trainloader = DataLoader(
+            raw_trainset,
+            batch_size,
+            num_workers=num_workers,
+            persistent_workers=num_workers > 0,
+        )
+        self._testloader = DataLoader(
+            raw_testset,
+            batch_size,
+            num_workers=num_workers,
+            persistent_workers=num_workers > 0,
+        )
+
+    @property
+    def trainset(self) -> DataLoader:
+        return self._trainloader
+
+    @property
+    def testset(self) -> DataLoader:
+        return self._testloader
+
+
+class _ApgdAdversarialCifarDataset(_SpecifiedAttackCifarDataset):
+    def __init__(
+        self,
+        train: bool = True,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ) -> None:
+        super().__init__("apgd", train, transform)
+
+
+class ApgdAdversarialCifarDataSource(_CommonDataSourceTemplate):
+    def __init__(
+        self,
+        batch_size: int,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        num_workers: int = 0,
+    ) -> None:
+        super().__init__(
+            _ApgdAdversarialCifarDataset,
+            batch_size,
+            transform,
+            num_workers,
+        )
+
+
+class _CWAdversarialCifarDataset(_SpecifiedAttackCifarDataset):
+    def __init__(
+        self,
+        train: bool = True,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ) -> None:
+        super().__init__("cw", train, transform)
+
+
+class CWAdversarialCifarDataSource(_CommonDataSourceTemplate):
+    def __init__(
+        self,
+        batch_size: int,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        num_workers: int = 0,
+    ) -> None:
+        super().__init__(
+            _CWAdversarialCifarDataset,
+            batch_size,
+            transform,
+            num_workers,
+        )
+
+
+class _RFgsmAdversarialCifarDataset(_SpecifiedAttackCifarDataset):
+    def __init__(
+        self,
+        train: bool = True,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ) -> None:
+        super().__init__("rfgsm", train, transform)
+
+
+class RFgsmAdversarialCifarDataSource(_CommonDataSourceTemplate):
+    def __init__(
+        self,
+        batch_size: int,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        num_workers: int = 0,
+    ) -> None:
+        super().__init__(
+            _RFgsmAdversarialCifarDataset,
+            batch_size,
+            transform,
+            num_workers,
+        )
+
+
+class _AdversarialCifarDataset(ConcatDataset):
+    def __init__(
+        self,
+        train: bool = True,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ) -> None:
+        super().__init__(
+            (
+                _ApgdAdversarialCifarDataset(train, transform),
+                _CWAdversarialCifarDataset(train, transform),
+                _RFgsmAdversarialCifarDataset(train, transform),
+            )
+        )
+
+
+class AdversarialCifarDataSource(_CommonDataSourceTemplate):
+    def __init__(
+        self,
+        batch_size: int,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        num_workers: int = 0,
+    ) -> None:
+        super().__init__(
+            _AdversarialCifarDataset,
+            batch_size,
+            transform,
+            num_workers,
+        )
