@@ -2,30 +2,47 @@ import pathlib
 from typing import *
 from typing import Any
 
-import lightning
+import lightning as L
 import torch
 import torch.nn.functional as F
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
-from torch import optim
+from torch import nn, optim
 
+from fusion_detector import datasource
 from fusion_detector.classifier import LinearAdversarialClassifier
-from fusion_detector.extractor import MobileResExtractor, ResNetKind
+from fusion_detector.extractor import (
+    AbstractFeatureExtractor,
+    MobileResConvExtractor,
+    MobileResLinearExtractor,
+    ResNetKind,
+)
 
 SCRIPT_PATH = pathlib.Path(__file__).parent
 PROJECT_PATH = SCRIPT_PATH.parent
 LOGGER_PATH = PROJECT_PATH / "log"
 
 
-class MobileResLinearAdversarialDetector(lightning.LightningModule):
-    def __init__(self, learning_rate: float = 0.01) -> None:
+class FusionDetectorTemplate(L.LightningModule):
+    def __init__(
+        self,
+        extractor: AbstractFeatureExtractor,
+        classifier: nn.Module,
+        learning_rate: float = 0.01,
+    ) -> None:
         super().__init__()
+        self.extractor = extractor
+        self.classifier = classifier
         self.learning_rate = learning_rate
-        self.extractor = MobileResExtractor(ResNetKind.RESNET_50)
-        self.classifier = LinearAdversarialClassifier(2048 + 1280)
+
+    def _trainable_parameters(self) -> Iterable[nn.Parameter]:
+        extractor_parameters = self.extractor.trainable_parameters()
+        if extractor_parameters is not None:
+            return (*self.classifier.parameters(), *extractor_parameters)
+        return self.classifier.parameters()
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
-        return optim.SGD(self.classifier.parameters(), self.learning_rate)
+        return optim.SGD(self._trainable_parameters(), self.learning_rate)
 
     def training_step(self, batch: Any) -> STEP_OUTPUT:
         x, label = batch
@@ -35,7 +52,7 @@ class MobileResLinearAdversarialDetector(lightning.LightningModule):
         y = self.classifier(x).view(-1)
         # Return loss to lightning framework.
         loss = F.binary_cross_entropy_with_logits(y, label)
-        self.log("train loss", loss.item(), on_step=True, prog_bar=True)
+        self.log("loss", loss.item(), on_step=True, prog_bar=True)
         return loss
 
     def test_step(self, batch: Any) -> STEP_OUTPUT:
@@ -48,13 +65,36 @@ class MobileResLinearAdversarialDetector(lightning.LightningModule):
         # Collect statistics
         correct = torch.eq(predict, label).sum().item()
         total = len(label)
-        self.log(
-            "test accuracy", correct / total, prog_bar=True, on_epoch=True, on_step=True
+        self.log("acc", correct / total, prog_bar=True, on_epoch=True, on_step=True)
+
+
+class MobileResLinearDetector(FusionDetectorTemplate):
+    def __init__(
+        self,
+        learning_rate: float = 0.01,
+    ) -> None:
+        super().__init__(
+            MobileResLinearExtractor(ResNetKind.RESNET_50),
+            LinearAdversarialClassifier(2048 + 1280),
+            learning_rate,
+        )
+
+
+class MobileResConvDetector(FusionDetectorTemplate):
+    def __init__(
+        self,
+        learning_rate: float = 0.01,
+    ) -> None:
+        super().__init__(
+            MobileResConvExtractor(ResNetKind.RESNET_50_CONV),
+            LinearAdversarialClassifier(1280),
+            learning_rate,
         )
 
 
 BATCH_SIZE = 32
 NUM_WORKERS = 2
+LEARNING_RATE = 0.01
 
 
 def main():
@@ -62,41 +102,19 @@ def main():
     if not savepath.exists():
         savepath.mkdir(parents=True)
 
-    detector = MobileResLinearAdversarialDetector.load_from_checkpoint(
-        savepath / "MobileResLinear.ckpt"
-    )
+    detector = MobileResConvDetector(LEARNING_RATE)
 
-    trainer = lightning.Trainer(
-        # max_epochs=100,
+    trainer = L.Trainer(
+        max_epochs=100,
         logger=TensorBoardLogger(LOGGER_PATH),
         enable_checkpointing=False,
     )
 
-    # test_data = dataset.CifarHybridDataSource(
-    #     train=False, transform=transforms.ToTensor()
-    # )
+    source = datasource.HybridCifarDataSource(BATCH_SIZE)
 
-    # train_data = dataset.CifarHybridDataSource(
-    #     train=True, transform=transforms.ToTensor()
-    # )
-
-    # trainloader = DataLoader(
-    #     train_data,
-    #     batch_size=BATCH_SIZE,
-    #     num_workers=NUM_WORKERS,
-    #     persistent_workers=NUM_WORKERS > 0,
-    # )
-
-    # testloader = DataLoader(
-    #     test_data,
-    #     batch_size=BATCH_SIZE,
-    #     num_workers=NUM_WORKERS,
-    #     persistent_workers=NUM_WORKERS > 0,
-    # )
-
-    # trainer.fit(detector, trainloader)
-    # trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
-    # trainer.test(detector, testloader)
+    trainer.fit(detector, source.trainset)
+    trainer.save_checkpoint(savepath / "MobileResConv.ckpt")
+    trainer.test(detector, source.testset)
 
 
 # Guideline recommended Main Guard

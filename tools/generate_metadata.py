@@ -56,7 +56,7 @@ def main():
     ):
         summary_path = (SUMMARY_DIRECTORY / name).with_suffix(FILE_SUFFIX)
         with PossibleRedirectStream(summary_path):
-            torchsummary.summary(module, input_size=(3, 224, 224))
+            torchsummary.summary(module, input_size=(3, 32, 32))
         structure_path = (STRUCTURE_DIRECTORY / name).with_suffix(FILE_SUFFIX)
         with PossibleRedirectStream(structure_path):
             print(module)

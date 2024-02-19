@@ -21,6 +21,9 @@ def layer_of(module: nn.Module, pattern: str) -> nn.Module:
 
 class LayerOutputCollectedModuleWrapper(object):
     def __init__(self, module: nn.Module, layer_pattern: str) -> None:
+        module.eval()
+        module.requires_grad_(False)
+
         self.underlying = module
         self.layer = layer_of(module, layer_pattern)
         self._output: Optional[torch.Tensor] = None

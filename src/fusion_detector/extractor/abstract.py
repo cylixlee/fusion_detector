@@ -13,6 +13,9 @@ __all__ = [
 
 
 class AbstractFeatureExtractor(ABC):
+    def trainable_parameters(self) -> Optional[Iterable[nn.Parameter]]:
+        return None
+
     @abstractmethod
     def extract(self, x: torch.Tensor) -> torch.Tensor: ...
 
@@ -23,7 +26,6 @@ class AbstractFeatureExtractor(ABC):
 class IntermediateLayerFeatureExtractor(AbstractFeatureExtractor):
     def __init__(self, module: nn.Module, layer_pattern: str) -> None:
         self.module_wrapper = LayerOutputCollectedModuleWrapper(module, layer_pattern)
-        self.module_wrapper.underlying.requires_grad_(False)
 
     def extract(self, x: torch.Tensor) -> torch.Tensor:
         self.module_wrapper(x)
