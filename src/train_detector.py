@@ -61,6 +61,7 @@ class FusionDetectorTemplate(L.LightningModule):
         x = self.extractor(x)
         # Binary classification (adversarial, or non-adversarial)
         y = self.classifier(x).view(-1)
+        y = F.sigmoid(y)
         predict = torch.floor(y + 0.5)
         # Collect statistics
         correct = torch.eq(predict, label).sum().item()
@@ -102,18 +103,24 @@ def main():
     if not savepath.exists():
         savepath.mkdir(parents=True)
 
-    detector = MobileResConvDetector(LEARNING_RATE)
+    # detector = MobileResConvDetector(LEARNING_RATE)
 
-    trainer = L.Trainer(
-        max_epochs=100,
-        logger=TensorBoardLogger(LOGGER_PATH),
-        enable_checkpointing=False,
+    detector = MobileResConvDetector.load_from_checkpoint(
+        savepath / "MobileResConv.ckpt"
     )
 
-    source = datasource.HybridCifarDataSource(BATCH_SIZE)
+    # trainer = L.Trainer(
+    #     max_epochs=100,
+    #     logger=TensorBoardLogger(LOGGER_PATH),
+    #     enable_checkpointing=False,
+    # )
 
-    trainer.fit(detector, source.trainset)
-    trainer.save_checkpoint(savepath / "MobileResConv.ckpt")
+    trainer = L.Trainer(logger=False, enable_checkpointing=False)
+
+    source = datasource.HybridCifarDataSource(BATCH_SIZE, num_workers=NUM_WORKERS)
+
+    # trainer.fit(detector, source.trainset)
+    # trainer.save_checkpoint(savepath / "MobileResConv.ckpt")
     trainer.test(detector, source.testset)
 
 
