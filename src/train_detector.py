@@ -52,7 +52,7 @@ class FusionDetectorTemplate(L.LightningModule):
         y = self.classifier(x).view(-1)
         # Return loss to lightning framework.
         loss = F.binary_cross_entropy_with_logits(y, label)
-        self.log("loss", loss.item(), on_step=True, prog_bar=True)
+        self.log("loss", loss.item(), prog_bar=True, on_epoch=True, on_step=True)
         return loss
 
     def test_step(self, batch: Any) -> STEP_OUTPUT:

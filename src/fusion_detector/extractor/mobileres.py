@@ -60,12 +60,16 @@ class MobileResConvExtractor(AbstractFeatureExtractor):
             constructor(pretrained=True, device=DEFAULT_DEVICE).to(DEFAULT_DEVICE),
             pattern,
         )
-        self.resnetconv = nn.Conv2d(2048, 640, 2)  # to [-1, 640, 1, 1]
+        self.resnetconv = nn.Conv2d(2048, 640, 2).to(
+            DEFAULT_DEVICE
+        )  # to [-1, 640, 1, 1]
         self.mobilenet = IntermediateLayerFeatureExtractor(
             M.mobilenet_v2(pretrained=True, device=DEFAULT_DEVICE).to(DEFAULT_DEVICE),
             self.__class__.MOBILENET_V2_LAYER,
         )
-        self.mobileconv = nn.Conv2d(1280, 640, 4)  # to [-1, 640, 1, 1]
+        self.mobileconv = nn.Conv2d(1280, 640, 4).to(
+            DEFAULT_DEVICE
+        )  # to [-1, 640, 1, 1]
 
     def trainable_parameters(self) -> Iterable[nn.Parameter]:
         return (
