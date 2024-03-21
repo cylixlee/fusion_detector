@@ -29,6 +29,10 @@ __all__ = [
     "AdversarialCifarDataSource",
     "HybridCifarDataset",
     "HybridCifarDataSource",
+    "StrongAdversarialCifarDataset",
+    "StrongAdversarialCifarDataSource",
+    "HybridStrongCifarDataset",
+    "HybridStrongCifarDataSource",
 ]
 
 SCRIPT_DIRECTORY = pathlib.Path(__file__).parent
@@ -235,6 +239,90 @@ class HybridCifarDataSource(CommonDataSourceTemplate):
     ) -> None:
         super().__init__(
             HybridCifarDataset,
+            batch_size,
+            transform,
+            None,
+            num_workers,
+        )
+
+
+class StrongAdversarialCifarDataset(Dataset):
+    def __init__(
+        self,
+        train: bool = True,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = CIFAR_TRANSFORM,
+        target_transform: Optional[
+            Callable[[torch.Tensor], torch.Tensor]
+        ] = ADVERSARIAL_TARGET_TRANSFORM,
+    ) -> None:
+        self.transform = transform
+        self.target_transform = target_transform
+        self.lst = misc.SegmentedSerializableList[Tuple[Image, int]](
+            DATASET_DIRECTORY / "CIFAR10StrongAdversarial", "train" if train else "test"
+        )
+
+    def __getitem__(self, index) -> Tuple[Image, int]:
+        x, label = self.lst[index]
+        if self.transform is not None:
+            x = self.transform(x)
+        if self.target_transform is not None:
+            label = self.target_transform(label)
+        return x, label
+
+    def __len__(self) -> int:
+        return len(self.lst)
+
+
+class StrongAdversarialCifarDataSource(CommonDataSourceTemplate):
+    def __init__(
+        self,
+        batch_size: int,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = CIFAR_TRANSFORM,
+        target_transform: Optional[
+            Callable[[torch.Tensor], torch.Tensor]
+        ] = ADVERSARIAL_TARGET_TRANSFORM,
+        num_workers: int = 0,
+    ) -> None:
+        super().__init__(
+            StrongAdversarialCifarDataset,
+            batch_size,
+            transform,
+            target_transform,
+            num_workers,
+        )
+
+
+class HybridStrongCifarDataset(JaggedDataset):
+    def __init__(
+        self,
+        train: bool = True,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = CIFAR_TRANSFORM,
+        # Target transform cannot be specified in hybrid dataset.
+        # This argument is left unused, in order to make compiler happy :)
+        target_transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ) -> None:
+        super().__init__(
+            (
+                StrongAdversarialCifarDataset(
+                    train, transform, ADVERSARIAL_TARGET_TRANSFORM
+                ),
+                RepeatDataset(
+                    _cifar_dataset_wrapper(train, transform, NORMAL_TARGET_TRANSFORM),
+                    2,
+                ),
+            )
+        )
+
+
+class HybridStrongCifarDataSource(CommonDataSourceTemplate):
+    def __init__(
+        self,
+        batch_size: int,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = CIFAR_TRANSFORM,
+        num_workers: int = 0,
+    ) -> None:
+        super().__init__(
+            HybridStrongCifarDataset,
             batch_size,
             transform,
             None,
