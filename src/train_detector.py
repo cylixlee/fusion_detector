@@ -43,7 +43,7 @@ class FusionDetectorTemplate(L.LightningModule):
         return self.classifier.parameters()
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
-        return optim.SGD(self._trainable_parameters(), self.learning_rate)
+        return optim.RMSprop(self._trainable_parameters(), self.learning_rate)
 
     def training_step(self, batch: Any) -> STEP_OUTPUT:
         x, label = batch
@@ -51,9 +51,8 @@ class FusionDetectorTemplate(L.LightningModule):
         x = self.extractor(x)
         # Binary classification (adversarial, or non-adversarial)
         y = self.classifier(x).view(-1)
-        y = F.sigmoid(y)
-        predict = torch.floor(y + 0.5)
         # Collect statistics
+        predict = torch.floor(F.sigmoid(y) + 0.5)
         correct = torch.eq(predict, label).sum().item()
         total = len(label)
         # Return loss to lightning framework.
@@ -110,7 +109,7 @@ def main():
     if not savepath.exists():
         savepath.mkdir(parents=True)
 
-    detector = MobileResConvDetector(LEARNING_RATE)
+    detector = MobileResLinearDetector(LEARNING_RATE)
     # detector = MobileResConvDetector(LEARNING_RATE)
 
     # detector = MobileResConvDetector.load_from_checkpoint(
@@ -121,17 +120,17 @@ def main():
     #     savepath / "MobileResLinear.ckpt"
     # )
 
-    trainer = L.Trainer(
-        max_epochs=100, logger=TensorBoardLogger(LOGGER_PATH), default_root_dir=savepath
-    )
+    trainer = L.Trainer(max_epochs=100, logger=TensorBoardLogger(LOGGER_PATH))
 
     # trainer = L.Trainer(logger=False, enable_checkpointing=False)
 
     # source = datasource.HybridCifarDataSource(BATCH_SIZE, num_workers=NUM_WORKERS)
-    source = datasource.HybridStrongCifarDataSource(BATCH_SIZE, num_workers=NUM_WORKERS)
+    source = datasource.HybridStrongCifarDataSource(
+        0.2, BATCH_SIZE, num_workers=NUM_WORKERS
+    )
 
-    trainer.fit(detector, source.trainset)
-    # trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
+    trainer.fit(detector, source.trainset, source.validset)
+    trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
     trainer.test(detector, source.testset, ckpt_path="best")
 
 

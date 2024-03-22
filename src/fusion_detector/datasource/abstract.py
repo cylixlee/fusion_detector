@@ -5,6 +5,7 @@ from typing import *
 
 import torch
 from PIL.Image import Image
+from torch.utils.data import Subset
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import Dataset
 
@@ -20,6 +21,10 @@ class AbstractDataSource(ABC):
     @property
     @abstractmethod
     def trainset(self) -> DataLoader: ...
+
+    @property
+    @abstractmethod
+    def validset(self) -> DataLoader: ...
 
     @property
     @abstractmethod
