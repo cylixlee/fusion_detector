@@ -47,6 +47,7 @@ class FusionDetectorTemplate(L.LightningModule):
 
     def training_step(self, batch: Any) -> STEP_OUTPUT:
         x, label = batch
+        print(f"Label: {label}")
         # Feature extraction
         x = self.extractor(x)
         # Binary classification (adversarial, or non-adversarial)
@@ -82,7 +83,7 @@ class MobileResLinearDetector(FusionDetectorTemplate):
     ) -> None:
         super().__init__(
             MobileResLinearExtractor(ResNetKind.RESNET_50),
-            LinearAdversarialClassifier(2048 + 1280),
+            LinearAdversarialClassifier(512 + 384),
             learning_rate,
         )
 
@@ -94,12 +95,12 @@ class MobileResConvDetector(FusionDetectorTemplate):
     ) -> None:
         super().__init__(
             MobileResConvExtractor(ResNetKind.RESNET_50_CONV),
-            LinearAdversarialClassifier(8192),
+            LinearAdversarialClassifier(2048),
             learning_rate,
         )
 
 
-BATCH_SIZE = 256
+BATCH_SIZE = 512
 NUM_WORKERS = 12
 LEARNING_RATE = 0.01
 
@@ -125,11 +126,9 @@ def main():
     # trainer = L.Trainer(logger=False, enable_checkpointing=False)
 
     # source = datasource.HybridCifarDataSource(BATCH_SIZE, num_workers=NUM_WORKERS)
-    source = datasource.HybridStrongCifarDataSource(
-        0.2, BATCH_SIZE, num_workers=NUM_WORKERS
-    )
+    source = datasource.HybridStrongCifarDataSource(BATCH_SIZE, num_workers=NUM_WORKERS)
 
-    trainer.fit(detector, source.trainset, source.validset)
+    trainer.fit(detector, source.trainset)
     trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
     trainer.test(detector, source.testset, ckpt_path="best")
 

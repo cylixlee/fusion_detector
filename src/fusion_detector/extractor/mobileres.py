@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import *
+from typing import Iterable
 
 import torch
 from torch import nn
@@ -17,14 +18,14 @@ DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class ResNetKind(Enum):
-    RESNET_18 = (M.resnet18, "avgpool")  # [-1, 512, 1, 1]
-    RESNET_34 = (M.resnet34, "avgpool")  # [-1, 512, 1, 1]
-    RESNET_50 = (M.resnet50, "avgpool")  # [-1, 2048, 1, 1]
-    RESNET_50_CONV = (M.resnet50, "layer4")  # [-1, 2048, 2, 2]
+    # RESNET_18 = (M.resnet18, "avgpool")  # [-1, 512, 1, 1]
+    # RESNET_34 = (M.resnet34, "avgpool")  # [-1, 512, 1, 1]
+    RESNET_50 = (M.resnet50, "layer2.3")  # [-1, 512, 8, 8]
+    RESNET_50_CONV = (M.resnet50, "layer2.3")  # [-1, 512, 8, 8]
 
 
 class MobileResLinearExtractor(AbstractFeatureExtractor):
-    MOBILENET_V2_LAYER = "features.18.2"
+    MOBILENET_V2_LAYER = "features.7.conv.0.1"  # [-1, 384, 8, 8]
 
     def __init__(self, resnet_kind: ResNetKind) -> None:
         constructor, pattern = resnet_kind.value
@@ -36,40 +37,48 @@ class MobileResLinearExtractor(AbstractFeatureExtractor):
             M.mobilenet_v2(pretrained=True, device=DEFAULT_DEVICE).to(DEFAULT_DEVICE),
             self.__class__.MOBILENET_V2_LAYER,
         )
-        self.average_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.resnet_avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.mobilenet_avgpool = nn.AdaptiveAvgPool2d((1, 1))
+
+    def trainable_parameters(self) -> Iterable[nn.Parameter]:
+        return (
+            *self.resnet_avgpool.parameters(),
+            *self.mobilenet_avgpool.parameters(),
+        )
 
     def extract(self, x: torch.Tensor) -> torch.Tensor:
-        # [-1, 2048, 1, 1]
+        # [-1, 512, 8, 8]
         resnet_features = self.resnet(x)
+        resnet_features = self.resnet_avgpool(resnet_features)
 
-        # [-1, 1280, 4, 4]
+        # [-1, 384, 8, 8]
         mobilenet_features = self.mobilenet(x)
-        # [-1, 1280, 1, 1]
-        mobilenet_features = self.average_pool(mobilenet_features)
+        # [-1, 384, 1, 1]
+        mobilenet_features = self.mobilenet_avgpool(mobilenet_features)
 
-        # [-1, 2048+1280, 1, 1]
+        # [-1, 512+384, 1, 1]
         return torch.cat((resnet_features, mobilenet_features), dim=1)
 
 
 class MobileResConvExtractor(AbstractFeatureExtractor):
-    MOBILENET_V2_LAYER = "features.18.2"
+    MOBILENET_V2_LAYER = "features.7.conv.0.1"  # [-1, 384, 8, 8]
 
     def __init__(self, resnet_kind: ResNetKind) -> None:
         constructor, pattern = resnet_kind.value
         self.resnet = IntermediateLayerFeatureExtractor(
             constructor(pretrained=True, device=DEFAULT_DEVICE).to(DEFAULT_DEVICE),
             pattern,
-        )
-        self.resnetconv = nn.Conv2d(2048, 4096, 2).to(
+        )  # [-1, 512, 8, 8]
+        self.resnetconv = nn.Conv2d(512, 1024, 8).to(
             DEFAULT_DEVICE
-        )  # to [-1, 4096, 1, 1]
+        )  # to [-1, 1024, 1, 1]
         self.mobilenet = IntermediateLayerFeatureExtractor(
             M.mobilenet_v2(pretrained=True, device=DEFAULT_DEVICE).to(DEFAULT_DEVICE),
             self.__class__.MOBILENET_V2_LAYER,
-        )
-        self.mobileconv = nn.Conv2d(1280, 4096, 4).to(
+        )  # [-1, 384, 8, 8]
+        self.mobileconv = nn.Conv2d(384, 1024, 8).to(
             DEFAULT_DEVICE
-        )  # to [-1, 4096, 1, 1]
+        )  # to [-1, 1024, 1, 1]
 
     def trainable_parameters(self) -> Iterable[nn.Parameter]:
         return (
@@ -78,15 +87,15 @@ class MobileResConvExtractor(AbstractFeatureExtractor):
         )
 
     def extract(self, x: torch.Tensor) -> torch.Tensor:
-        # [-1, 2048, 2, 2]
+        # [-1, 512, 8, 8]
         resnet_features = self.resnet(x)
-        # [-1, 640, 1, 1]
+        # [-1, 1024, 1, 1]
         resnet_features = self.resnetconv(resnet_features)
 
-        # [-1, 1280, 4, 4]
+        # [-1, 384, 8, 8]
         mobilenet_features = self.mobilenet(x)
-        # [-1, 640, 1, 1]
+        # [-1, 1024, 1, 1]
         mobilenet_features = self.mobileconv(mobilenet_features)
 
-        # [-1, 1280, 1, 1]
+        # [-1, 2048, 1, 1]
         return torch.cat((resnet_features, mobilenet_features), dim=1)

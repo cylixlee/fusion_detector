@@ -24,10 +24,6 @@ class AbstractDataSource(ABC):
 
     @property
     @abstractmethod
-    def validset(self) -> DataLoader: ...
-
-    @property
-    @abstractmethod
     def testset(self) -> DataLoader: ...
 
 
