@@ -47,7 +47,6 @@ class FusionDetectorTemplate(L.LightningModule):
 
     def training_step(self, batch: Any) -> STEP_OUTPUT:
         x, label = batch
-        print(f"Label: {label}")
         # Feature extraction
         x = self.extractor(x)
         # Binary classification (adversarial, or non-adversarial)
@@ -68,9 +67,8 @@ class FusionDetectorTemplate(L.LightningModule):
         x = self.extractor(x)
         # Binary classification (adversarial, or non-adversarial)
         y = self.classifier(x).view(-1)
-        y = F.sigmoid(y)
-        predict = torch.floor(y + 0.5)
         # Collect statistics
+        predict = torch.floor(F.sigmoid(y) + 0.5)
         correct = torch.eq(predict, label).sum().item()
         total = len(label)
         self.log("acc", correct / total, prog_bar=True, on_epoch=True, on_step=True)
@@ -83,7 +81,7 @@ class MobileResLinearDetector(FusionDetectorTemplate):
     ) -> None:
         super().__init__(
             MobileResLinearExtractor(ResNetKind.RESNET_50),
-            LinearAdversarialClassifier(512 + 384),
+            LinearAdversarialClassifier(512 + 192),
             learning_rate,
         )
 
@@ -110,27 +108,32 @@ def main():
     if not savepath.exists():
         savepath.mkdir(parents=True)
 
-    detector = MobileResLinearDetector(LEARNING_RATE)
+    # detector = MobileResLinearDetector(LEARNING_RATE)
     # detector = MobileResConvDetector(LEARNING_RATE)
-
-    # detector = MobileResConvDetector.load_from_checkpoint(
-    #     savepath / "MobileResConv.ckpt"
-    # )
 
     # detector = MobileResLinearDetector.load_from_checkpoint(
     #     savepath / "MobileResLinear.ckpt"
     # )
 
-    trainer = L.Trainer(max_epochs=100, logger=TensorBoardLogger(LOGGER_PATH))
+    detector = MobileResConvDetector.load_from_checkpoint(
+        savepath / "MobileResConv.ckpt"
+    )
+    detector.train(False)
+    detector.eval()
 
-    # trainer = L.Trainer(logger=False, enable_checkpointing=False)
+    # trainer = L.Trainer(max_epochs=100, logger=TensorBoardLogger(LOGGER_PATH))
 
-    # source = datasource.HybridCifarDataSource(BATCH_SIZE, num_workers=NUM_WORKERS)
+    trainer = L.Trainer(logger=False, enable_checkpointing=False)
+
     source = datasource.HybridStrongCifarDataSource(BATCH_SIZE, num_workers=NUM_WORKERS)
 
-    trainer.fit(detector, source.trainset)
-    trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
-    trainer.test(detector, source.testset, ckpt_path="best")
+    # trainer.fit(detector, source.trainset)
+    # trainer.test(detector, source.testset, ckpt_path="best")
+
+    trainer.test(detector, source.testset)
+    
+    # trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
+    # trainer.save_checkpoint(savepath / "MobileResConv.ckpt")
 
 
 # Guideline recommended Main Guard

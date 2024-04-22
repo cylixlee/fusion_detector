@@ -25,7 +25,7 @@ class ResNetKind(Enum):
 
 
 class MobileResLinearExtractor(AbstractFeatureExtractor):
-    MOBILENET_V2_LAYER = "features.7.conv.0.1"  # [-1, 384, 8, 8]
+    MOBILENET_V2_LAYER = "features.7.conv.0.1"  # [-1, 192, 16, 16]
 
     def __init__(self, resnet_kind: ResNetKind) -> None:
         constructor, pattern = resnet_kind.value
@@ -49,19 +49,20 @@ class MobileResLinearExtractor(AbstractFeatureExtractor):
     def extract(self, x: torch.Tensor) -> torch.Tensor:
         # [-1, 512, 8, 8]
         resnet_features = self.resnet(x)
+        # [-1, 512, 1, 1]
         resnet_features = self.resnet_avgpool(resnet_features)
 
-        # [-1, 384, 8, 8]
+        # [-1, 192, 16, 16]
         mobilenet_features = self.mobilenet(x)
-        # [-1, 384, 1, 1]
+        # [-1, 192, 1, 1]
         mobilenet_features = self.mobilenet_avgpool(mobilenet_features)
 
-        # [-1, 512+384, 1, 1]
+        # [-1, 512+192, 1, 1]
         return torch.cat((resnet_features, mobilenet_features), dim=1)
 
 
 class MobileResConvExtractor(AbstractFeatureExtractor):
-    MOBILENET_V2_LAYER = "features.7.conv.0.1"  # [-1, 384, 8, 8]
+    MOBILENET_V2_LAYER = "features.7.conv.0.1"  # [-1, 192, 16, 16]
 
     def __init__(self, resnet_kind: ResNetKind) -> None:
         constructor, pattern = resnet_kind.value
@@ -75,8 +76,8 @@ class MobileResConvExtractor(AbstractFeatureExtractor):
         self.mobilenet = IntermediateLayerFeatureExtractor(
             M.mobilenet_v2(pretrained=True, device=DEFAULT_DEVICE).to(DEFAULT_DEVICE),
             self.__class__.MOBILENET_V2_LAYER,
-        )  # [-1, 384, 8, 8]
-        self.mobileconv = nn.Conv2d(384, 1024, 8).to(
+        )  # [-1, 192, 16, 16]
+        self.mobileconv = nn.Conv2d(192, 1024, 16).to(
             DEFAULT_DEVICE
         )  # to [-1, 1024, 1, 1]
 
@@ -92,7 +93,7 @@ class MobileResConvExtractor(AbstractFeatureExtractor):
         # [-1, 1024, 1, 1]
         resnet_features = self.resnetconv(resnet_features)
 
-        # [-1, 384, 8, 8]
+        # [-1, 192, 16, 16]
         mobilenet_features = self.mobilenet(x)
         # [-1, 1024, 1, 1]
         mobilenet_features = self.mobileconv(mobilenet_features)
