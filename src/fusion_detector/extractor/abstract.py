@@ -13,13 +13,12 @@ __all__ = [
 
 
 class AbstractFeatureExtractor(ABC):
-    def trainable_parameters(self) -> Optional[Iterable[nn.Parameter]]:
-        return None
-
     @abstractmethod
-    def extract(self, x: torch.Tensor) -> torch.Tensor: ...
+    def extract(
+        self, x: torch.Tensor
+    ) -> Union[torch.Tensor, Iterable[torch.Tensor]]: ...
 
-    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+    def __call__(self, x: torch.Tensor) -> Union[torch.Tensor, Iterable[torch.Tensor]]:
         return self.extract(x)
 
 

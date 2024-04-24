@@ -1,7 +1,9 @@
+from typing import *
+
 import torch
 from torch import nn
 
-__all__ = ["LinearAdversarialClassifier"]
+__all__ = ["LinearAdversarialClassifier", "ConvAdversarialClassifier"]
 
 
 class LinearAdversarialClassifier(nn.Module):
@@ -16,6 +18,21 @@ class LinearAdversarialClassifier(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x.view(-1, self.feature_channels)
-        binary = self.fc(x)
-        return binary
+        return self.fc(x.view(-1, self.feature_channels))
+
+
+class ConvAdversarialClassifier(nn.Module):
+    def __init__(self, *shapes: Tuple[int, int], out_channels: int) -> None:
+        super().__init__()
+        self.convs = nn.ModuleList()
+        self.feature_channels = len(shapes) * out_channels
+        for in_channels, kernel in shapes:
+            self.convs.append(nn.Conv2d(in_channels, out_channels, kernel))
+        self.classifier = LinearAdversarialClassifier(self.feature_channels)
+
+    def forward(self, x: Iterable[torch.Tensor]) -> torch.Tensor:
+        flattened = []
+        for index, feature_graph in enumerate(x):
+            flattened.append(self.convs[index](feature_graph))
+        fusioned = torch.concat(flattened, dim=1)
+        return self.classifier(fusioned)

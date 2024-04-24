@@ -1,6 +1,5 @@
 import pathlib
 from typing import *
-from typing import Any
 
 import lightning as L
 import torch
@@ -10,11 +9,14 @@ from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
 from torch import nn, optim
 
 from fusion_detector import datasource
-from fusion_detector.classifier import LinearAdversarialClassifier
+from fusion_detector.classifier import (
+    ConvAdversarialClassifier,
+    LinearAdversarialClassifier,
+)
 from fusion_detector.extractor import (
     AbstractFeatureExtractor,
-    MobileResConvExtractor,
-    MobileResLinearExtractor,
+    MobileResConcatExtractor,
+    MobileResSeparateExtractor,
     ResNetKind,
 )
 
@@ -36,14 +38,8 @@ class FusionDetectorTemplate(L.LightningModule):
         self.classifier = classifier
         self.learning_rate = learning_rate
 
-    def _trainable_parameters(self) -> Iterable[nn.Parameter]:
-        extractor_parameters = self.extractor.trainable_parameters()
-        if extractor_parameters is not None:
-            return (*self.classifier.parameters(), *extractor_parameters)
-        return self.classifier.parameters()
-
     def configure_optimizers(self) -> OptimizerLRScheduler:
-        return optim.RMSprop(self._trainable_parameters(), self.learning_rate)
+        return optim.RMSprop(self.classifier.parameters(), self.learning_rate)
 
     def training_step(self, batch: Any) -> STEP_OUTPUT:
         x, label = batch
@@ -80,7 +76,7 @@ class MobileResLinearDetector(FusionDetectorTemplate):
         learning_rate: float = 0.01,
     ) -> None:
         super().__init__(
-            MobileResLinearExtractor(ResNetKind.RESNET_50),
+            MobileResConcatExtractor(ResNetKind.RESNET_50),
             LinearAdversarialClassifier(512 + 192),
             learning_rate,
         )
@@ -92,8 +88,8 @@ class MobileResConvDetector(FusionDetectorTemplate):
         learning_rate: float = 0.01,
     ) -> None:
         super().__init__(
-            MobileResConvExtractor(ResNetKind.RESNET_50_CONV),
-            LinearAdversarialClassifier(2048),
+            MobileResSeparateExtractor(ResNetKind.RESNET_50_CONV),
+            ConvAdversarialClassifier((512, 8), (192, 16), out_channels=1024),
             learning_rate,
         )
 
@@ -109,33 +105,35 @@ def main():
         savepath.mkdir(parents=True)
 
     # detector = MobileResLinearDetector(LEARNING_RATE)
-    # detector = MobileResConvDetector(LEARNING_RATE)
+    detector = MobileResConvDetector(LEARNING_RATE)
 
     # detector = MobileResLinearDetector.load_from_checkpoint(
     #     savepath / "MobileResLinear.ckpt"
     # )
 
-    detector = MobileResConvDetector.load_from_checkpoint(
-        savepath / "MobileResConv.ckpt"
-    )
-    detector.train(False)
-    detector.eval()
+    # detector = MobileResConvDetector.load_from_checkpoint(
+    #     savepath / "MobileResConv.ckpt"
+    # )
+    # detector.train(False)
+    # detector.eval()
 
-    # trainer = L.Trainer(max_epochs=100, logger=TensorBoardLogger(LOGGER_PATH))
+    trainer = L.Trainer(max_epochs=100, logger=TensorBoardLogger(LOGGER_PATH))
 
-    trainer = L.Trainer(logger=False, enable_checkpointing=False)
+    # trainer = L.Trainer(logger=False, enable_checkpointing=False)
 
     source = datasource.HybridStrongCifarDataSource(BATCH_SIZE, num_workers=NUM_WORKERS)
 
-    # trainer.fit(detector, source.trainset)
-    # trainer.test(detector, source.testset, ckpt_path="best")
+    trainer.fit(detector, source.trainset)
+    trainer.test(detector, source.testset, ckpt_path="best")
 
-    trainer.test(detector, source.testset)
-    
+    # trainer.test(detector, source.testset)
+
     # trainer.save_checkpoint(savepath / "MobileResLinear.ckpt")
-    # trainer.save_checkpoint(savepath / "MobileResConv.ckpt")
+    trainer.save_checkpoint(savepath / "MobileResConv.ckpt")
 
 
 # Guideline recommended Main Guard
 if __name__ == "__main__":
     main()
+    # detector = MobileResConvDetector(LEARNING_RATE)
+    # print(detector)
