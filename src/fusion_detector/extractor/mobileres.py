@@ -1,6 +1,5 @@
 from enum import Enum
 from typing import *
-from typing import Iterable
 
 import torch
 from torch import nn
@@ -64,27 +63,16 @@ class MobileResSeparateExtractor(AbstractFeatureExtractor):
             constructor(pretrained=True, device=DEFAULT_DEVICE).to(DEFAULT_DEVICE),
             pattern,
         )  # [-1, 512, 8, 8]
-        # self.resnetconv = nn.Conv2d(512, 1024, 8).to(
-        #     DEFAULT_DEVICE
-        # )  # to [-1, 1024, 1, 1]
         self.mobilenet = IntermediateLayerFeatureExtractor(
             M.mobilenet_v2(pretrained=True, device=DEFAULT_DEVICE).to(DEFAULT_DEVICE),
             self.__class__.MOBILENET_V2_LAYER,
         )  # [-1, 192, 16, 16]
-        # self.mobileconv = nn.Conv2d(192, 1024, 16).to(
-        #     DEFAULT_DEVICE
-        # )  # to [-1, 1024, 1, 1]
 
     def extract(self, x: torch.Tensor) -> torch.Tensor:
         # [-1, 512, 8, 8]
         resnet_features = self.resnet(x)
-        # [-1, 1024, 1, 1]
-        # resnet_features = self.resnetconv(resnet_features)
 
         # [-1, 192, 16, 16]
         mobilenet_features = self.mobilenet(x)
-        # [-1, 1024, 1, 1]
-        # mobilenet_features = self.mobileconv(mobilenet_features)
 
-        # [-1, 2048, 1, 1]
         return (resnet_features, mobilenet_features)
